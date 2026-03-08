@@ -36,183 +36,163 @@ st.markdown("""
 <style>
     /* Global */
     .stApp {
-        background-color: #0a0a0a;
+        background-color: #000000;
         color: #e0e0e0;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     }
 
     /* Headers */
     h1, h2, h3 {
         color: #ffffff !important;
-        font-weight: 700 !important;
+        font-weight: 400 !important;
+        letter-spacing: -0.01em;
     }
 
     /* Main title */
     .main-title {
-        font-size: 2.8rem;
-        font-weight: 800;
+        font-size: 2.5rem;
+        font-weight: 300;
         color: #ffffff;
         margin-bottom: 0;
-        letter-spacing: -0.02em;
+        letter-spacing: -0.03em;
     }
     .main-subtitle {
-        font-size: 1.1rem;
+        font-size: 1rem;
         color: #888888;
         margin-top: 0;
         margin-bottom: 2rem;
+        font-weight: 300;
     }
 
     /* Cache status badges */
     .cache-hit {
-        background: linear-gradient(135deg, #00ff8820, #00ff8810);
-        border: 1px solid #00ff88;
-        color: #00ff88;
-        padding: 8px 20px;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: 1.1rem;
+        background: #ffffff;
+        border: 1px solid #ffffff;
+        color: #000000;
+        padding: 6px 16px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.9rem;
         display: inline-block;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
     }
     .cache-miss {
-        background: linear-gradient(135deg, #ff444420, #ff444410);
-        border: 1px solid #ff4444;
-        color: #ff4444;
-        padding: 8px 20px;
-        border-radius: 8px;
-        font-weight: 700;
-        font-size: 1.1rem;
+        background: transparent;
+        border: 1px solid #555555;
+        color: #aaaaaa;
+        padding: 6px 16px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 0.9rem;
         display: inline-block;
-    }
-
-    /* Metric cards */
-    .metric-card {
-        background: #111111;
-        border: 1px solid #222222;
-        border-radius: 12px;
-        padding: 20px;
-        text-align: center;
-        margin-bottom: 12px;
-    }
-    .metric-value {
-        font-size: 2.2rem;
-        font-weight: 800;
-        color: #00ff88;
-        margin: 0;
-    }
-    .metric-value-red {
-        font-size: 2.2rem;
-        font-weight: 800;
-        color: #ff4444;
-        margin: 0;
-    }
-    .metric-label {
-        font-size: 0.85rem;
-        color: #888888;
-        margin: 0;
         text-transform: uppercase;
         letter-spacing: 0.05em;
     }
 
+    /* Metric cards */
+    .metric-card {
+        background: transparent;
+        border: 1px solid #333333;
+        border-radius: 4px;
+        padding: 24px;
+        text-align: center;
+        margin-bottom: 12px;
+    }
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: 300;
+        color: #ffffff;
+        margin: 0;
+        letter-spacing: -0.02em;
+    }
+    .metric-value-red {
+        font-size: 2.5rem;
+        font-weight: 300;
+        color: #888888;
+        margin: 0;
+        letter-spacing: -0.02em;
+    }
+    .metric-label {
+        font-size: 0.75rem;
+        color: #666666;
+        margin: 0;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+    }
+
     /* Response box */
     .response-box {
-        background: #111111;
-        border: 1px solid #222222;
-        border-radius: 12px;
-        padding: 20px;
+        background: #0a0a0a;
+        border-left: 2px solid #ffffff;
+        padding: 16px 20px;
         margin: 12px 0;
-        font-size: 1rem;
-        line-height: 1.6;
-        color: #cccccc;
+        font-size: 1.1rem;
+        line-height: 1.5;
+        color: #dddddd;
+        font-weight: 300;
     }
 
     /* Intent badge */
     .intent-badge {
-        background: #1a1a2e;
-        border: 1px solid #333366;
-        color: #8888ff;
-        padding: 6px 16px;
+        background: transparent;
+        border: 1px solid #444444;
+        color: #cccccc;
+        padding: 4px 12px;
         border-radius: 20px;
-        font-weight: 600;
-        font-size: 0.9rem;
+        font-weight: 400;
+        font-size: 0.8rem;
         display: inline-block;
         margin-right: 8px;
     }
     .confidence-badge {
-        background: #1a2e1a;
-        border: 1px solid #336633;
-        color: #88ff88;
-        padding: 6px 16px;
-        border-radius: 20px;
-        font-weight: 600;
-        font-size: 0.9rem;
+        background: transparent;
+        color: #888888;
+        font-weight: 400;
+        font-size: 0.8rem;
         display: inline-block;
     }
 
     /* Latency comparison */
     .latency-cached {
-        color: #00ff88;
-        font-weight: 700;
-        font-size: 1.3rem;
+        color: #ffffff;
+        font-weight: 300;
+        font-size: 1.5rem;
     }
     .latency-llm {
-        color: #ff4444;
-        font-weight: 700;
-        font-size: 1.3rem;
+        color: #666666;
+        font-weight: 300;
+        font-size: 1.5rem;
     }
 
     /* Memory injection boxes */
     .memory-without {
-        background: #111111;
-        border: 1px solid #333333;
-        border-radius: 12px;
-        padding: 16px;
-        color: #cccccc;
+        background: transparent;
+        border: 1px dashed #333333;
+        border-radius: 4px;
+        padding: 20px;
+        color: #888888;
+        font-weight: 300;
     }
     .memory-with {
-        background: #0a1a0a;
-        border: 1px solid #00ff8840;
-        border-radius: 12px;
-        padding: 16px;
-        color: #cccccc;
-    }
-    .memory-tag {
-        color: #00ff88;
-        font-style: italic;
-        margin-top: 8px;
-        padding-top: 8px;
-        border-top: 1px dashed #00ff8840;
-    }
-
-    /* Savings highlight */
-    .savings-big {
-        font-size: 3rem;
-        font-weight: 900;
-        color: #00ff88;
-        text-align: center;
-        margin: 10px 0;
-    }
-
-    /* Hot cache badge */
-    .hot-badge {
-        background: linear-gradient(135deg, #ff880020, #ff880010);
-        border: 1px solid #ff8800;
-        color: #ff8800;
-        padding: 4px 12px;
-        border-radius: 8px;
-        font-weight: 600;
-        font-size: 0.85rem;
-        display: inline-block;
+        background: #0a0a0a;
+        border: 1px solid #555555;
+        border-radius: 4px;
+        padding: 20px;
+        color: #ffffff;
+        font-weight: 300;
     }
 
     /* Section dividers */
     .section-divider {
         border: none;
         border-top: 1px solid #222222;
-        margin: 2rem 0;
+        margin: 3rem 0;
     }
 
     /* Sidebar styling */
     section[data-testid="stSidebar"] {
-        background-color: #0e0e0e;
+        background-color: #050505;
         border-right: 1px solid #1a1a1a;
     }
 
@@ -296,8 +276,8 @@ def update_metrics(intent: str, is_hit: bool):
 # SIDEBAR — Section 2: Real-Time Metrics
 # ──────────────────────────────────────────────
 with st.sidebar:
-    st.markdown('<p style="font-size:1.4rem;font-weight:700;color:#ffffff;margin-bottom:0;">⚡ CompanionCache</p>', unsafe_allow_html=True)
-    st.markdown('<p style="font-size:0.85rem;color:#666666;margin-top:0;">Semantic Caching Metrics</p>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size:1.4rem;font-weight:300;color:#ffffff;margin-bottom:0;letter-spacing:-0.02em;">CompanionCache</p>', unsafe_allow_html=True)
+    st.markdown('<p style="font-size:0.85rem;color:#666666;margin-top:0;">Semantic Caching Dashboard</p>', unsafe_allow_html=True)
     st.markdown("---")
 
     # Threshold slider
@@ -310,8 +290,7 @@ with st.sidebar:
         help="Higher = more precise but fewer cache hits. Lower = more hits but less accurate matching.",
     )
     st.markdown(
-        f'<p style="font-size:0.75rem;color:#666;">Current: **{threshold}** — '
-        f'{"Aggressive caching" if threshold < 0.35 else "Balanced" if threshold < 0.5 else "Conservative"}</p>',
+        f'<p style="font-size:0.75rem;color:#666;">Current matching strictness: **{threshold}**</p>',
         unsafe_allow_html=True,
     )
     st.markdown("---")
@@ -324,7 +303,7 @@ with st.sidebar:
 
     st.markdown(f"""
     <div class="metric-card">
-        <p class="metric-label">Total Messages</p>
+        <p class="metric-label">Total Volume</p>
         <p class="metric-value">{total}</p>
     </div>
     """, unsafe_allow_html=True)
@@ -346,11 +325,10 @@ with st.sidebar:
         """, unsafe_allow_html=True)
 
     # Cache hit rate — big number
-    rate_color = "#00ff88" if hit_rate >= 50 else "#ff8800" if hit_rate >= 30 else "#ff4444"
     st.markdown(f"""
     <div class="metric-card">
         <p class="metric-label">Cache Hit Rate</p>
-        <p style="font-size:3rem;font-weight:900;color:{rate_color};margin:0;">{hit_rate:.1f}%</p>
+        <p style="font-size:3rem;font-weight:300;color:#ffffff;margin:0;letter-spacing:-0.02em;">{hit_rate:.1f}%</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -363,22 +341,22 @@ with st.sidebar:
 
     st.markdown(f"""
     <div class="metric-card">
-        <p class="metric-label">Cost Without Cache</p>
+        <p class="metric-label">LLM Cost Estimate</p>
         <p class="metric-value-red">${cost_without:.2f}</p>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown(f"""
     <div class="metric-card">
-        <p class="metric-label">Cost With Cache</p>
+        <p class="metric-label">Cache Cost</p>
         <p class="metric-value">${cost_with:.4f}</p>
     </div>
     """, unsafe_allow_html=True)
 
     st.markdown(f"""
-    <div class="metric-card">
-        <p class="metric-label">💰 Total Saved</p>
-        <p style="font-size:2.5rem;font-weight:900;color:#00ff88;margin:0;">${saved:.2f}</p>
+    <div class="metric-card" style="border-color:#555555;">
+        <p class="metric-label" style="color:#ffffff;">Net Savings</p>
+        <p style="font-size:2.5rem;font-weight:400;color:#ffffff;margin:0;letter-spacing:-0.02em;">${saved:.2f}</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -387,9 +365,9 @@ with st.sidebar:
         savings_per_msg = saved / total if total > 0 else 0.0099
         daily_savings_1m = savings_per_msg * 1_000_000
         st.markdown(f"""
-        <div class="metric-card" style="border-color:#00ff8830;">
-            <p class="metric-label">At 1M Messages/Day</p>
-            <p style="font-size:1.8rem;font-weight:800;color:#00ff88;margin:0;">
+        <div class="metric-card" style="border-color:#ffffff;">
+            <p class="metric-label">At 1M Scale</p>
+            <p style="font-size:1.5rem;font-weight:400;color:#ffffff;margin:0;letter-spacing:-0.01em;">
                 Saves ${daily_savings_1m:,.0f}/day
             </p>
         </div>
@@ -400,15 +378,15 @@ with st.sidebar:
     # Hot cache stats
     hc = st.session_state.hot_cache
     st.markdown(f"""
-    <div class="metric-card" style="border-color:#ff880030;">
-        <p class="metric-label">🔥 Hot Cache Clusters</p>
-        <p style="font-size:1.5rem;font-weight:700;color:#ff8800;margin:0;">{hc.get_total_clusters()}</p>
-        <p style="font-size:0.8rem;color:#888;margin:4px 0 0 0;">{hc.get_promoted_count()} promoted</p>
+    <div class="metric-card" style="border-color:#444444;">
+        <p class="metric-label" style="color:#aaaaaa;">Adaptive Clusters</p>
+        <p style="font-size:1.5rem;font-weight:300;color:#ffffff;margin:0;">{hc.get_total_clusters()}</p>
+        <p style="font-size:0.8rem;color:#666;margin:4px 0 0 0;">{hc.get_promoted_count()} promoted</p>
     </div>
     """, unsafe_allow_html=True)
 
     # Auto-promote settings
-    st.markdown("#### 🔥 Hot Cache Settings")
+    st.markdown("#### Adaptive Settings")
     auto_promote_on = st.toggle("Auto-promote patterns", value=True)
     promote_threshold = st.slider(
         "Promotion threshold",
@@ -424,19 +402,20 @@ with st.sidebar:
 # ══════════════════════════════════════════════
 
 # Title
-st.markdown('<p class="main-title">⚡ CompanionCache</p>', unsafe_allow_html=True)
-st.markdown('<p class="main-subtitle">Semantic caching layer for AI companions — cut LLM costs by 70%+ without losing personality</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-title">CompanionCache</p>', unsafe_allow_html=True)
+st.markdown('<p class="main-subtitle">Semantic caching layer for AI companions. Cut latency and cost instantly.</p>', unsafe_allow_html=True)
 
 
 # ──────────────────────────────────────────────
 # SECTION 1 — Live Demo
 # ──────────────────────────────────────────────
-st.markdown("## 💬 Live Demo")
+st.markdown("## Interactive Demo")
 
 user_input = st.text_input(
-    "Type any message an AI companion user would send...",
-    placeholder="e.g. 'im feeling so lonely today', 'good morning', 'do you love me'",
+    "Test real-time classification and retrieval",
+    placeholder="e.g. 'im feeling so lonely today', 'good morning'",
     key="live_input",
+    label_visibility="collapsed"
 )
 
 if user_input and user_input != st.session_state.get("_last_processed", ""):
@@ -470,21 +449,21 @@ if user_input and user_input != st.session_state.get("_last_processed", ""):
     col_status, col_latency = st.columns([3, 1])
     with col_status:
         if hit:
-            hit_label = "🔥 HOT CACHE HIT" if was_hot_hit else "CACHE HIT"
-            st.markdown(f'<span class="cache-hit">✅ {hit_label}</span>', unsafe_allow_html=True)
+            hit_label = "ADAPTIVE HIT" if was_hot_hit else "CACHE HIT"
+            st.markdown(f'<span class="cache-hit">{hit_label}</span>', unsafe_allow_html=True)
         else:
-            st.markdown('<span class="cache-miss">❌ CACHE MISS — Would call LLM</span>', unsafe_allow_html=True)
+            st.markdown('<span class="cache-miss">CACHE MISS / LLM ROUTED</span>', unsafe_allow_html=True)
 
     with col_latency:
         if hit:
-            st.markdown('<p class="latency-cached">⚡ 4ms</p>', unsafe_allow_html=True)
+            st.markdown('<p class="latency-cached">4ms</p>', unsafe_allow_html=True)
         else:
-            st.markdown('<p class="latency-llm">🐌 ~850ms</p>', unsafe_allow_html=True)
+            st.markdown('<p class="latency-llm">~850ms</p>', unsafe_allow_html=True)
 
     # Intent + confidence
     st.markdown(
         f'<span class="intent-badge">{intent}</span>'
-        f'<span class="confidence-badge">{confidence:.2%} confidence</span>',
+        f'<span class="confidence-badge">{confidence:.0%} match</span>',
         unsafe_allow_html=True,
     )
 
@@ -498,7 +477,7 @@ if user_input and user_input != st.session_state.get("_last_processed", ""):
         with mem_col1:
             st.markdown(f"""
             <div class="memory-without">
-                <p style="font-size:0.75rem;color:#888;margin:0 0 8px 0;">WITHOUT MEMORY — $0.0001</p>
+                <p style="font-size:0.75rem;color:#888;margin:0 0 8px 0;letter-spacing:0.05em;text-transform:uppercase;">Without Memory Injection</p>
                 {response}
             </div>
             """, unsafe_allow_html=True)
@@ -506,7 +485,7 @@ if user_input and user_input != st.session_state.get("_last_processed", ""):
             injected = inject_memory(response, st.session_state.memory_fact)
             st.markdown(f"""
             <div class="memory-with">
-                <p style="font-size:0.75rem;color:#00ff88;margin:0 0 8px 0;">WITH MEMORY — $0.0001 (still just a DB lookup!)</p>
+                <p style="font-size:0.75rem;color:#aaa;margin:0 0 8px 0;letter-spacing:0.05em;text-transform:uppercase;">With Context Appended</p>
                 {injected.replace(chr(10), '<br>')}
             </div>
             """, unsafe_allow_html=True)
@@ -517,19 +496,19 @@ st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 # ──────────────────────────────────────────────
 # Rotating Cache Demo
 # ──────────────────────────────────────────────
-st.markdown("## 🔄 Response Rotation Demo")
-st.markdown("*Proves the same user can send the same message repeatedly and get unique responses every time — zero repetition, zero LLM cost.*")
+st.markdown("## Response Rotation")
+st.markdown("*Maintains illusion of live status by serving sequential responses to identical inputs.*")
 
 rot_col1, rot_col2 = st.columns([1, 3])
 with rot_col1:
     repeat_msg = st.text_input(
-        "Message to repeat:",
+        "Input to repeat:",
         value="im feeling lonely",
         key="rotation_input",
     )
-    repeat_count = st.selectbox("Repeat count:", [5, 10, 15, 20], index=0)
+    repeat_count = st.selectbox("Iterations:", [5, 10, 15, 20], index=0)
 
-if st.button("🔁 Send Same Message Multiple Times", key="rotation_btn", use_container_width=True):
+if st.button("Simulate Repeated Input", key="rotation_btn", use_container_width=True):
     # Temporarily save and restore rotation index
     results = []
     for i in range(repeat_count):
@@ -538,12 +517,11 @@ if st.button("🔁 Send Same Message Multiple Times", key="rotation_btn", use_co
         results.append({
             "#": i + 1,
             "Intent": intent,
-            "Confidence": f"{conf:.2%}",
-            "Response": resp[:80] + "..." if len(resp) > 80 else resp,
-            "Cost": "$0.0001",
+            "Match": f"{conf:.0%}",
+            "Response Fragment": resp[:80] + "..." if len(resp) > 80 else resp,
         })
 
-    st.markdown(f'<span class="cache-hit">✅ {repeat_count} unique responses served — $0.00 LLM cost</span>', unsafe_allow_html=True)
+    st.markdown(f'<span style="color:#ffffff;font-weight:600;letter-spacing:0.05em;text-transform:uppercase;">{repeat_count} cache hits generated</span>', unsafe_allow_html=True)
     st.dataframe(
         pd.DataFrame(results),
         use_container_width=True,
@@ -556,14 +534,14 @@ st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 # ──────────────────────────────────────────────
 # Memory Injection Layer
 # ──────────────────────────────────────────────
-st.markdown("## 🧠 Memory Injection Layer")
-st.markdown("*Append personalized context to cached responses — looks personal, costs nothing extra.*")
+st.markdown("## Context Injection")
+st.markdown("*Append external database retrievals to cached templates.*")
 
 mem_col1, mem_col2 = st.columns([1, 1])
 with mem_col1:
     memory_input = st.text_input(
-        "Enter a memory fact about the user:",
-        placeholder="e.g. 'stressed about final exams', 'loves coffee', 'just got promoted'",
+        "User context flag:",
+        placeholder="e.g. 'stressed about final exams'",
         key="memory_input",
     )
     if memory_input:
@@ -572,9 +550,9 @@ with mem_col1:
 with mem_col2:
     st.markdown(f"""
     <div class="metric-card" style="text-align:left;">
-        <p class="metric-label">Current Memory</p>
-        <p style="color:#00ff88;font-size:1.1rem;margin:8px 0 0 0;">
-            {st.session_state.memory_fact if st.session_state.memory_fact else '<span style="color:#444;">No memory set</span>'}
+        <p class="metric-label">Active Context</p>
+        <p style="color:#ffffff;font-size:1.1rem;margin:8px 0 0 0;font-weight:300;">
+            {st.session_state.memory_fact if st.session_state.memory_fact else '<span style="color:#444;">Null</span>'}
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -589,25 +567,24 @@ if st.session_state.memory_fact:
     with demo_col1:
         st.markdown(f"""
         <div class="memory-without">
-            <p style="font-size:0.75rem;color:#888;margin:0 0 8px 0;">❌ WITHOUT MEMORY</p>
+            <p style="font-size:0.75rem;color:#666;margin:0 0 8px 0;letter-spacing:0.05em;text-transform:uppercase;">Null Context</p>
             <p style="margin:0;">{demo_response}</p>
-            <p style="font-size:0.8rem;color:#888;margin:8px 0 0 0;">Cost: $0.0001 (cache)</p>
+            <p style="font-size:0.8rem;color:#555;margin:8px 0 0 0;">Cost coefficient: 1.0x</p>
         </div>
         """, unsafe_allow_html=True)
     with demo_col2:
         st.markdown(f"""
         <div class="memory-with">
-            <p style="font-size:0.75rem;color:#00ff88;margin:0 0 8px 0;">✅ WITH MEMORY</p>
+            <p style="font-size:0.75rem;color:#aaa;margin:0 0 8px 0;letter-spacing:0.05em;text-transform:uppercase;">Context Appended</p>
             <p style="margin:0;">{injected.replace(chr(10), '<br>')}</p>
-            <p style="font-size:0.8rem;color:#00ff88;margin:8px 0 0 0;">Cost: $0.0001 (cache + DB lookup = $0.000)</p>
+            <p style="font-size:0.8rem;color:#888;margin:8px 0 0 0;">Cost coefficient: 1.0x</p>
         </div>
         """, unsafe_allow_html=True)
 
     st.markdown("""
-    <div class="metric-card" style="text-align:center;border-color:#00ff8830;">
-        <p style="color:#888;font-size:0.85rem;margin:0;">Memory injection cost</p>
-        <p style="color:#00ff88;font-size:2rem;font-weight:800;margin:0;">$0.000</p>
-        <p style="color:#666;font-size:0.8rem;margin:4px 0 0 0;">Just a database lookup — no LLM involved</p>
+    <div class="metric-card" style="text-align:center;border-color:#333333;">
+        <p style="color:#666;font-size:0.75rem;letter-spacing:0.05em;text-transform:uppercase;margin:0;">Processing Cost Delta</p>
+        <p style="color:#ffffff;font-size:2rem;font-weight:300;margin:0;">$0.000</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -617,7 +594,7 @@ st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 # ──────────────────────────────────────────────
 # SECTION 3 — Intent Distribution Chart
 # ──────────────────────────────────────────────
-st.markdown("## 📊 Intent Distribution")
+st.markdown("## Query Classification")
 
 intent_data = st.session_state.intent_counts
 if sum(intent_data.values()) > 0:
@@ -631,15 +608,15 @@ if sum(intent_data.values()) > 0:
         orientation="h",
         marker=dict(
             color=values,
-            colorscale=[[0, "#1a1a2e"], [0.5, "#4444ff"], [1, "#00ff88"]],
+            colorscale=[[0, "#222222"], [1, "#ffffff"]],
         ),
         text=values,
         textposition="outside",
         textfont=dict(color="#888888", size=12),
     ))
     fig.update_layout(
-        plot_bgcolor="#0a0a0a",
-        paper_bgcolor="#0a0a0a",
+        plot_bgcolor="#000000",
+        paper_bgcolor="#000000",
         font=dict(color="#888888", size=12),
         xaxis=dict(showgrid=False, showticklabels=False),
         yaxis=dict(showgrid=False, autorange="reversed"),
@@ -656,11 +633,11 @@ st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 # ──────────────────────────────────────────────
 # SECTION 4 — Batch Benchmark
 # ──────────────────────────────────────────────
-st.markdown("## 🚀 Batch Benchmark")
-st.markdown(f"*Run all {len(MESSAGES)} test messages through the classifier. See real cache hit rates and cost analysis.*")
+st.markdown("## Latency & Financial Impact Model")
+st.markdown(f"*Simulating analysis over {len(MESSAGES)} natural language inputs.*")
 
-if st.button("⚡ Run Full Benchmark", key="benchmark_btn", use_container_width=True):
-    progress_bar = st.progress(0, text="Starting benchmark...")
+if st.button("Initialize Benchmark", key="benchmark_btn", use_container_width=True):
+    progress_bar = st.progress(0, text="Executing benchmark protocol...")
     results = {"hits": 0, "misses": 0, "intents": {intent: 0 for intent in INTENTS}}
     total_msgs = len(MESSAGES)
 
@@ -677,10 +654,10 @@ if st.button("⚡ Run Full Benchmark", key="benchmark_btn", use_container_width=
 
         # Update progress (pace it over ~3-4 seconds)
         progress = (i + 1) / total_msgs
-        progress_bar.progress(progress, text=f"Processing message {i+1}/{total_msgs}...")
+        progress_bar.progress(progress, text=f"Processing {i+1}/{total_msgs}...")
         time.sleep(3.0 / total_msgs)
 
-    progress_bar.progress(1.0, text="✅ Benchmark complete!")
+    progress_bar.progress(1.0, text="Benchmark complete")
     st.session_state.benchmark_results = results
 
     # Display results
@@ -688,11 +665,10 @@ if st.button("⚡ Run Full Benchmark", key="benchmark_btn", use_container_width=
 
     res_col1, res_col2, res_col3 = st.columns(3)
     with res_col1:
-        rate_col = "#00ff88" if bench_hit_rate >= 60 else "#ff8800"
         st.markdown(f"""
         <div class="metric-card">
-            <p class="metric-label">Cache Hit Rate</p>
-            <p style="font-size:3rem;font-weight:900;color:{rate_col};margin:0;">{bench_hit_rate:.1f}%</p>
+            <p class="metric-label">Cache Intercept Rate</p>
+            <p style="font-size:2.5rem;font-weight:300;color:#ffffff;margin:0;letter-spacing:-0.02em;">{bench_hit_rate:.1f}%</p>
         </div>
         """, unsafe_allow_html=True)
     with res_col2:
@@ -701,21 +677,21 @@ if st.button("⚡ Run Full Benchmark", key="benchmark_btn", use_container_width=
         bench_saved = bench_cost_without - bench_cost_with
         st.markdown(f"""
         <div class="metric-card">
-            <p class="metric-label">Cost Saved ({total_msgs} msgs)</p>
-            <p style="font-size:2.5rem;font-weight:900;color:#00ff88;margin:0;">${bench_saved:.2f}</p>
+            <p class="metric-label">Cost Reduction ({total_msgs})</p>
+            <p style="font-size:2.5rem;font-weight:300;color:#ffffff;margin:0;letter-spacing:-0.02em;">${bench_saved:.2f}</p>
         </div>
         """, unsafe_allow_html=True)
     with res_col3:
         daily_save = (bench_saved / total_msgs) * 1_000_000
         st.markdown(f"""
-        <div class="metric-card" style="border-color:#00ff8830;">
-            <p class="metric-label">At 1M msgs/day</p>
-            <p style="font-size:2rem;font-weight:800;color:#00ff88;margin:0;">${daily_save:,.0f}/day</p>
+        <div class="metric-card" style="border-color:#555555;">
+            <p class="metric-label">Projected Daily Savings</p>
+            <p style="font-size:2.5rem;font-weight:400;color:#ffffff;margin:0;letter-spacing:-0.02em;">${daily_save:,.0f}</p>
         </div>
         """, unsafe_allow_html=True)
 
     # Cost breakdown table
-    st.markdown("#### Cost Analysis")
+    st.markdown("#### Performance Matrix")
     cost_df = pd.DataFrame([
         {"Metric": "Total Messages", "Value": f"{total_msgs}"},
         {"Metric": "Cache Hits", "Value": f"{results['hits']}"},
@@ -739,15 +715,15 @@ if st.button("⚡ Run Full Benchmark", key="benchmark_btn", use_container_width=
         orientation="h",
         marker=dict(
             color=bench_values,
-            colorscale=[[0, "#1a1a2e"], [0.5, "#4444ff"], [1, "#00ff88"]],
+            colorscale=[[0, "#222222"], [1, "#ffffff"]],
         ),
         text=bench_values,
         textposition="outside",
         textfont=dict(color="#888888", size=12),
     ))
     bench_fig.update_layout(
-        plot_bgcolor="#0a0a0a",
-        paper_bgcolor="#0a0a0a",
+        plot_bgcolor="#000000",
+        paper_bgcolor="#000000",
         font=dict(color="#888888", size=12),
         xaxis=dict(showgrid=False, showticklabels=False),
         yaxis=dict(showgrid=False, autorange="reversed"),
@@ -762,23 +738,23 @@ st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 # ──────────────────────────────────────────────
 # SECTION 5 — Adaptive Hot Cache
 # ──────────────────────────────────────────────
-st.markdown("## 🔥 Adaptive Hot Cache")
-st.markdown("*The cache learns from frequently missed messages and auto-promotes them — improving hit rate over time with zero LLM cost.*")
+st.markdown("## Adaptive Learning Protocol")
+st.markdown("*Autonomous self-optimization of cache pathways.*")
 
 hc = st.session_state.hot_cache
 top_patterns = hc.get_top_patterns(10)
 
 if top_patterns:
-    st.markdown("#### Top Uncached Patterns")
+    st.markdown("#### Pending Optimization Nodes")
 
     pattern_data = []
     for i, cluster in enumerate(top_patterns):
         pattern_data.append({
             "#": i + 1,
-            "Message Pattern": cluster["text"][:60] + ("..." if len(cluster["text"]) > 60 else ""),
-            "Frequency": cluster["count"],
-            "Guessed Intent": cluster["intent_guess"],
-            "Status": "📥 Pending",
+            "Target Pattern": cluster["text"][:60] + ("..." if len(cluster["text"]) > 60 else ""),
+            "Freq": cluster["count"],
+            "Hypothesized Intent": cluster["intent_guess"],
+            "Status": "Queue",
         })
 
     st.dataframe(
@@ -788,35 +764,34 @@ if top_patterns:
     )
 
     # Manual promote button
-    if st.button("🚀 Promote All Eligible Patterns", key="promote_btn"):
+    if st.button("Execute Manual Promotion", key="promote_btn"):
         promoted = hc.auto_promote(promote_threshold)
         if promoted:
-            st.markdown('<span class="cache-hit">✅ Patterns promoted! Cache hit rate will improve on next messages.</span>', unsafe_allow_html=True)
+            st.markdown('<span style="color:#ffffff;">Optimization complete. Pathways updated.</span>', unsafe_allow_html=True)
         else:
-            st.markdown(f'<span style="color:#888;">No patterns have reached the promotion threshold ({promote_threshold}) yet.</span>', unsafe_allow_html=True)
+            st.markdown(f'<span style="color:#666;">Metrics insufficient for threshold ({promote_threshold}).</span>', unsafe_allow_html=True)
 
     # Stats
     st.markdown(f"""
     <div style="display:flex;gap:12px;margin-top:12px;">
-        <div class="metric-card" style="flex:1;border-color:#ff880030;">
-            <p class="metric-label">Total Clusters</p>
-            <p style="font-size:1.5rem;font-weight:700;color:#ff8800;margin:0;">{hc.get_total_clusters()}</p>
+        <div class="metric-card" style="flex:1;border-color:#333;">
+            <p class="metric-label">Detected Clusters</p>
+            <p style="font-size:1.5rem;font-weight:300;color:#ffffff;margin:0;">{hc.get_total_clusters()}</p>
         </div>
-        <div class="metric-card" style="flex:1;border-color:#00ff8830;">
-            <p class="metric-label">Promoted</p>
-            <p style="font-size:1.5rem;font-weight:700;color:#00ff88;margin:0;">{hc.get_promoted_count()}</p>
+        <div class="metric-card" style="flex:1;border-color:#555;">
+            <p class="metric-label">Promoted Pathways</p>
+            <p style="font-size:1.5rem;font-weight:300;color:#ffffff;margin:0;">{hc.get_promoted_count()}</p>
         </div>
         <div class="metric-card" style="flex:1;">
-            <p class="metric-label">Promotion Threshold</p>
-            <p style="font-size:1.5rem;font-weight:700;color:#888;margin:0;">{promote_threshold}x</p>
+            <p class="metric-label">Activation Threshold</p>
+            <p style="font-size:1.5rem;font-weight:300;color:#888;margin:0;">{promote_threshold}x</p>
         </div>
     </div>
     """, unsafe_allow_html=True)
 else:
     st.markdown("""
     <div class="metric-card" style="text-align:center;">
-        <p style="color:#666;margin:0;">No cache miss patterns detected yet.</p>
-        <p style="color:#444;font-size:0.85rem;margin:4px 0 0 0;">Send some messages above — misses will appear here for auto-promotion.</p>
+        <p style="color:#888;margin:0;font-weight:300;">System is currently operating at optimization equilibrium.</p>
     </div>
     """, unsafe_allow_html=True)
 
