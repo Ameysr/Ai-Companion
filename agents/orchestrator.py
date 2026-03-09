@@ -15,6 +15,7 @@ from agents.entity_tracker import EntityTracker
 from agents.coach_agent import CoachAgent
 from agents.coherence_guard import CoherenceGuard
 from notifications import NotificationManager
+from email_digest import EmailDigest
 from config import BATCH_EXTRACTION, USE_LOCAL_SENTIMENT
 
 
@@ -44,6 +45,7 @@ class Orchestrator:
 
         # Notifications
         self.notifier = NotificationManager(self.db)
+        self.emailer = EmailDigest(self.db)
 
         # Session management
         self.session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
@@ -223,3 +225,21 @@ class Orchestrator:
 
     def send_test_notification(self):
         self.notifier.send("AI Coach — Test", "Notifications are working!")
+
+    # ─── Email Digest ─────────────────────────────
+
+    def is_email_configured(self) -> bool:
+        return self.emailer.is_configured
+
+    def send_test_email(self) -> bool:
+        return self.emailer.send_daily_digest()
+
+    def start_email_scheduler(self, digest_time: str = "09:00"):
+        if self.emailer.is_configured:
+            self.emailer.start_scheduler(digest_time)
+
+    def get_digest_time(self) -> str:
+        return self.emailer.get_digest_time()
+
+    def set_digest_time(self, time_str: str):
+        self.emailer.set_digest_time(time_str)

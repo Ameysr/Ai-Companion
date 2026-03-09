@@ -134,6 +134,31 @@ with st.sidebar:
         st.markdown('<p style="color:#555;font-size:0.8rem;">Sent! Check your taskbar.</p>', unsafe_allow_html=True)
 
     st.markdown("---")
+
+    st.markdown('<p style="color:#666;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.08em;">Email Digest</p>', unsafe_allow_html=True)
+    if orch.is_email_configured():
+        digest_time = st.time_input(
+            "Daily email time",
+            value=datetime.strptime(orch.get_digest_time(), "%H:%M").time(),
+            key="digest_time",
+        )
+        if digest_time:
+            orch.set_digest_time(digest_time.strftime("%H:%M"))
+
+        if "email_started" not in st.session_state:
+            orch.start_email_scheduler()
+            st.session_state.email_started = True
+
+        if st.button("Send Test Email", key="test_email"):
+            success = orch.send_test_email()
+            if success:
+                st.markdown('<p style="color:#555;font-size:0.8rem;">Email sent! Check your inbox.</p>', unsafe_allow_html=True)
+            else:
+                st.markdown('<p style="color:#555;font-size:0.8rem;">Failed to send. Check SMTP settings in .env</p>', unsafe_allow_html=True)
+    else:
+        st.markdown('<p style="color:#444;font-size:0.8rem;">Add SMTP_EMAIL, SMTP_PASSWORD, and USER_EMAIL to .env to enable email digests.</p>', unsafe_allow_html=True)
+
+    st.markdown("---")
     st.markdown(f'<p style="color:#444;font-size:0.75rem;">Provider: {orch.llm.active_provider}</p>', unsafe_allow_html=True)
 
 # Title
