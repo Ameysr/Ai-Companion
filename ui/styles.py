@@ -245,10 +245,15 @@ MAIN_CSS = """
         border: 1px solid #2a2a2a !important;
     }
 
-    /* -- Hide Streamlit Branding ------------------------- */
+    /* -- Hide Streamlit Branding & Fix Top Margin ------------------------- */
     #MainMenu {visibility: hidden;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
+    
+    .block-container {
+        padding-top: 2rem !important;
+        padding-bottom: 2rem !important;
+    }
 
     /* -- Onboarding ------------------------------------- */
     .onboard-header {
@@ -441,6 +446,7 @@ MAIN_CSS = """
         line-height: 1.55;
         font-weight: 300;
         max-width: 92%;
+        margin-bottom: 24px;
     }
     .panel-msg-user {
         background: #1a1a1a;
@@ -452,6 +458,7 @@ MAIN_CSS = """
         line-height: 1.5;
         max-width: 85%;
         margin-left: auto;
+        margin-bottom: 24px;
     }
 
     /* Panel quick reply buttons */
