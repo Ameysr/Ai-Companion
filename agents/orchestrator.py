@@ -15,6 +15,7 @@ from agents.entity_tracker import EntityTracker
 from agents.coach_agent import CoachAgent
 from agents.coherence_guard import CoherenceGuard
 from agents.goal_detector import GoalDetector
+from agents.proactive_coach import ProactiveCoach
 from notifications import NotificationManager
 from email_digest import EmailDigest
 from config import BATCH_EXTRACTION, USE_LOCAL_SENTIMENT
@@ -44,6 +45,7 @@ class Orchestrator:
         self.coach = CoachAgent(self.llm, self.memory, self.emotion, self.entities, self.db)
         self.coherence = CoherenceGuard(self.llm, self.db, self.vs)
         self.goal_detector = GoalDetector(self.llm, self.db)
+        self.proactive = ProactiveCoach(self.llm, self.db)
 
         # Notifications
         self.notifier = NotificationManager(self.db)
@@ -258,3 +260,16 @@ class Orchestrator:
 
     def set_digest_time(self, time_str: str):
         self.emailer.set_digest_time(time_str)
+
+    # ─── Proactive Coach ──────────────────────────
+
+    def get_greeting(self) -> dict:
+        return self.proactive.get_greeting()
+
+    def get_quick_replies(self, coach_response: str, user_message: str,
+                          emotion: str = "") -> list:
+        return self.proactive.get_quick_replies(coach_response, user_message, emotion)
+
+    def get_proactive_nudge(self) -> dict:
+        return self.proactive.get_proactive_nudge()
+

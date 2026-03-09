@@ -212,7 +212,7 @@ tab_chat, tab_checkin, tab_progress, tab_world, tab_squad = st.tabs([
 
 
 # ══════════════════════════════════════════════
-# TAB 1: CHAT
+# TAB 1: CHAT (Proactive)
 # ══════════════════════════════════════════════
 with tab_chat:
     # Coaching mode selector
@@ -234,7 +234,68 @@ with tab_chat:
         )
         st.session_state.coaching_mode = selected_mode
 
-    # Display chat history
+    # ── Proactive Greeting (first load only) ──────
+    if "greeted" not in st.session_state:
+        st.session_state.greeted = False
+
+    if not st.session_state.greeted and len(st.session_state.chat_messages) == 0:
+        try:
+            greeting_data = orch.get_greeting()
+            greeting_text = greeting_data.get("greeting", f"What's on your mind, {user_name}?")
+            quick_replies = greeting_data.get("quick_replies", ["Feeling good", "Need advice", "Just venting"])
+
+            st.session_state.chat_messages.append({
+                "role": "coach",
+                "content": greeting_text,
+            })
+            st.session_state.current_replies = quick_replies
+            st.session_state.greeted = True
+        except Exception:
+            st.session_state.chat_messages.append({
+                "role": "coach",
+                "content": f"What's going on today, {user_name}?",
+            })
+            st.session_state.current_replies = ["Making progress", "Stuck on something", "Just checking in"]
+            st.session_state.greeted = True
+
+    # ── Proactive Nudge Banner ────────────────────
+    if "nudge_shown" not in st.session_state:
+        st.session_state.nudge_shown = False
+
+    if not st.session_state.nudge_shown and len(st.session_state.chat_messages) > 0:
+        try:
+            nudge = orch.get_proactive_nudge()
+            if nudge and nudge.get("message"):
+                st.markdown(f"""
+                <div style="background:#111;border-left:3px solid #333;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:12px;">
+                    <p style="color:#888;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 4px 0;">{nudge.get('type', 'nudge')}</p>
+                    <p style="color:#ddd;font-size:0.9rem;margin:0;">{nudge['message']}</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+                nudge_replies = nudge.get("quick_replies", [])
+                if nudge_replies:
+                    nudge_cols = st.columns(len(nudge_replies))
+                    for i, reply in enumerate(nudge_replies):
+                        with nudge_cols[i]:
+                            if st.button(reply, key=f"nudge_{i}"):
+                                st.session_state._last_input = ""
+                                st.session_state.chat_messages.append({"role": "user", "content": reply})
+                                result = orch.process_message(reply, st.session_state.coaching_mode)
+                                st.session_state.chat_messages.append({"role": "coach", "content": result["response"]})
+                                try:
+                                    st.session_state.current_replies = orch.get_quick_replies(
+                                        result["response"], reply, result["emotion"].get("label", "")
+                                    )
+                                except Exception:
+                                    st.session_state.current_replies = ["Got it", "Tell me more", "What else?"]
+                                st.session_state.nudge_shown = True
+                                st.rerun()
+        except Exception:
+            pass
+        st.session_state.nudge_shown = True
+
+    # ── Display Chat History ──────────────────────
     for msg in st.session_state.chat_messages:
         if msg["role"] == "user":
             st.markdown(f'<div class="chat-user">{msg["content"]}</div>', unsafe_allow_html=True)
@@ -248,44 +309,64 @@ with tab_chat:
         else:
             st.markdown(f'<div class="chat-coach">{msg["content"]}</div>', unsafe_allow_html=True)
 
-    # Input
-    user_input = st.chat_input(f"Talk to {coach_name}...")
+    # ── Quick Reply Buttons ───────────────────────
+    if "current_replies" not in st.session_state:
+        st.session_state.current_replies = []
+
+    replies = st.session_state.current_replies
+    if replies:
+        reply_cols = st.columns(len(replies))
+        for i, reply in enumerate(replies):
+            with reply_cols[i]:
+                if st.button(reply, key=f"qr_{i}_{len(st.session_state.chat_messages)}"):
+                    st.session_state.chat_messages.append({"role": "user", "content": reply})
+
+                    result = orch.process_message(reply, st.session_state.coaching_mode)
+
+                    st.session_state.chat_messages[-1]["emotion"] = result["emotion"].get("label", "")
+                    st.session_state.chat_messages[-1]["emotion_intensity"] = result["emotion"].get("intensity", 0.5)
+                    st.session_state.chat_messages.append({"role": "coach", "content": result["response"]})
+
+                    # Generate next quick replies
+                    try:
+                        st.session_state.current_replies = orch.get_quick_replies(
+                            result["response"], reply, result["emotion"].get("label", "")
+                        )
+                    except Exception:
+                        st.session_state.current_replies = ["Got it", "Tell me more", "What else?"]
+
+                    st.rerun()
+
+    # ── Text Input (still available) ──────────────
+    user_input = st.chat_input(f"Or type your own message...")
 
     if user_input and user_input != st.session_state._last_input:
         st.session_state._last_input = user_input
 
-        # Add user message to display
         st.session_state.chat_messages.append({
             "role": "user",
             "content": user_input,
         })
 
-        # Show user message immediately
         st.markdown(f'<div class="chat-user">{user_input}</div>', unsafe_allow_html=True)
 
-        # Typing indicator
         typing_placeholder = st.empty()
         typing_placeholder.markdown(
             '<div class="chat-coach" style="color:#444;font-style:italic;">thinking...</div>',
             unsafe_allow_html=True,
         )
 
-        # Process through orchestrator
         result = orch.process_message(user_input, st.session_state.coaching_mode)
-
-        # Clear typing indicator
         typing_placeholder.empty()
 
-        # Update user message with emotion
         st.session_state.chat_messages[-1]["emotion"] = result["emotion"].get("label", "")
         st.session_state.chat_messages[-1]["emotion_intensity"] = result["emotion"].get("intensity", 0.5)
 
-        # Stream the response word by word
         response_text = result["response"]
         response_placeholder = st.empty()
         streamed = ""
         words = response_text.split(" ")
-        for i, word in enumerate(words):
+        for word in words:
             streamed += word + " "
             response_placeholder.markdown(
                 f'<div class="chat-coach">{streamed.strip()}</div>',
@@ -293,23 +374,21 @@ with tab_chat:
             )
             time.sleep(0.03)
 
-        # Add coach response to state
         st.session_state.chat_messages.append({
             "role": "coach",
             "content": response_text,
         })
 
-        # Show emotion tag
-        emotion_label = result["emotion"].get("label", "")
-        if emotion_label:
-            intensity = result["emotion"].get("intensity", 0.5)
-            tag_class = "emotion-tag-strong" if intensity > 0.6 else "emotion-tag"
-            st.markdown(
-                f'<span class="{tag_class}">{emotion_label}</span>',
-                unsafe_allow_html=True,
+        # Generate quick replies for next turn
+        try:
+            emotion_label = result["emotion"].get("label", "")
+            st.session_state.current_replies = orch.get_quick_replies(
+                response_text, user_input, emotion_label
             )
+        except Exception:
+            st.session_state.current_replies = ["Got it", "Tell me more", "What else?"]
 
-        # Show goal update suggestion if detected
+        # Goal update detection
         goal_update = result.get("goal_update", {})
         if goal_update.get("detected"):
             goal_title = goal_update.get("goal_title", "")
@@ -321,14 +400,13 @@ with tab_chat:
             st.markdown(f"""
             <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:14px 18px;margin:8px 0;">
                 <p style="color:#888;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 6px 0;">Goal Progress Detected</p>
-                <p style="color:#fff;font-size:0.95rem;margin:0;">{goal_title}: {current}% → {suggested}%</p>
+                <p style="color:#fff;font-size:0.95rem;margin:0;">{goal_title}: {current}% to {suggested}%</p>
                 <p style="color:#666;font-size:0.8rem;margin:4px 0 0 0;">{reason}</p>
             </div>
             """, unsafe_allow_html=True)
 
-            if st.button(f"Update to {suggested}%", key=f"goal_up_{goal_id}_{self}"):
+            if st.button(f"Update to {suggested}%", key=f"goal_up_{goal_id}"):
                 orch.goal_detector_apply(goal_id, suggested)
-                st.markdown('<p style="color:#555;font-size:0.8rem;">Goal updated!</p>', unsafe_allow_html=True)
 
 
 # ══════════════════════════════════════════════
