@@ -66,6 +66,81 @@ if "squad_client" not in st.session_state:
 
 
 # ══════════════════════════════════════════════
+# API KEY SETUP (first-time only)
+# ══════════════════════════════════════════════
+from pathlib import Path
+env_path = Path(__file__).parent / ".env"
+
+def load_env_vars():
+    """Read current .env values."""
+    vals = {}
+    if env_path.exists():
+        for line in env_path.read_text().splitlines():
+            line = line.strip()
+            if line and not line.startswith("#") and "=" in line:
+                key, _, val = line.partition("=")
+                vals[key.strip()] = val.strip()
+    return vals
+
+def save_env_var(key: str, value: str):
+    """Write/update a key in .env."""
+    vals = load_env_vars()
+    vals[key] = value
+    lines = [f"{k}={v}" for k, v in vals.items()]
+    env_path.write_text("\n".join(lines) + "\n")
+
+if not orch.llm.is_available:
+    st.markdown("""
+    <div style="max-width:500px;margin:60px auto;text-align:center;">
+        <p style="color:#fff;font-size:1.3rem;font-weight:300;margin-bottom:4px;">AI Coach Companion</p>
+        <p style="color:#555;font-size:0.85rem;margin-bottom:32px;">Set up your LLM to get started. Your key stays on your machine.</p>
+    </div>
+    """, unsafe_allow_html=True)
+
+    st.markdown('<p style="color:#888;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.08em;">Choose your provider</p>', unsafe_allow_html=True)
+
+    provider_choice = st.radio(
+        "LLM Provider",
+        ["DeepSeek (recommended — cheap & fast)", "Google Gemini"],
+        label_visibility="collapsed",
+    )
+
+    if "DeepSeek" in provider_choice:
+        st.markdown('<p style="color:#666;font-size:0.8rem;">Get your key from <a href="https://platform.deepseek.com/api_keys" style="color:#888;">platform.deepseek.com</a></p>', unsafe_allow_html=True)
+        api_key = st.text_input("DeepSeek API Key", type="password", placeholder="sk-...", key="setup_ds_key")
+        if st.button("Save & Start", key="save_ds"):
+            if api_key.strip():
+                save_env_var("DEEPSEEK_API_KEY", api_key.strip())
+                save_env_var("LLM_PROVIDER", "deepseek")
+                st.success("Saved! Restarting app...")
+                import time as _t
+                _t.sleep(1)
+                st.rerun()
+            else:
+                st.warning("Please paste your API key.")
+    else:
+        st.markdown('<p style="color:#666;font-size:0.8rem;">Get your key from <a href="https://aistudio.google.com/apikey" style="color:#888;">aistudio.google.com</a></p>', unsafe_allow_html=True)
+        api_key = st.text_input("Gemini API Key", type="password", placeholder="AI...", key="setup_gm_key")
+        if st.button("Save & Start", key="save_gm"):
+            if api_key.strip():
+                save_env_var("GEMINI_API_KEY", api_key.strip())
+                save_env_var("LLM_PROVIDER", "gemini")
+                st.success("Saved! Restarting app...")
+                import time as _t
+                _t.sleep(1)
+                st.rerun()
+            else:
+                st.warning("Please paste your API key.")
+
+    st.markdown("""
+    <div style="text-align:center;margin-top:40px;">
+        <p style="color:#333;font-size:0.7rem;">Your API key is stored locally in .env — never sent anywhere except the LLM provider.</p>
+    </div>
+    """, unsafe_allow_html=True)
+    st.stop()
+
+
+# ══════════════════════════════════════════════
 # ONBOARDING FLOW
 # ══════════════════════════════════════════════
 if not orch.is_onboarded():
@@ -107,7 +182,7 @@ if not orch.is_onboarded():
 
     st.markdown("---")
 
-    if st.button("Start Coaching", use_container_width=True):
+    if st.button("Start Coaching", key="start_coaching"):
         if user_name.strip():
             orch.setup_profile(
                 name=user_name.strip(),
@@ -198,6 +273,20 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown(f'<p style="color:#444;font-size:0.75rem;">Provider: {orch.llm.active_provider}</p>', unsafe_allow_html=True)
+
+    with st.expander("Change API Key"):
+        new_key = st.text_input("New API key", type="password", key="change_api_key")
+        new_provider = st.radio("Provider", ["deepseek", "gemini"], key="change_provider",
+                                index=0 if orch.llm.active_provider == "DeepSeek" else 1)
+        if st.button("Update Key", key="update_key"):
+            if new_key.strip():
+                if new_provider == "deepseek":
+                    save_env_var("DEEPSEEK_API_KEY", new_key.strip())
+                    save_env_var("LLM_PROVIDER", "deepseek")
+                else:
+                    save_env_var("GEMINI_API_KEY", new_key.strip())
+                    save_env_var("LLM_PROVIDER", "gemini")
+                st.success("Updated! Restart app to apply.")
 
 # Title
 st.markdown(f'<p class="app-title">AI Coach</p>', unsafe_allow_html=True)
