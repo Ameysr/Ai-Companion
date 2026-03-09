@@ -4,7 +4,8 @@ Tries Gemini first, falls back to DeepSeek, handles errors.
 """
 
 import json
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 from openai import OpenAI
 from config import (
     GEMINI_API_KEY, DEEPSEEK_API_KEY,
@@ -17,10 +18,11 @@ class LLMProvider:
 
     def __init__(self):
         self._gemini_ready = False
+        self._gemini_client = None
         self._deepseek_client = None
 
         if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
-            genai.configure(api_key=GEMINI_API_KEY)
+            self._gemini_client = genai.Client(api_key=GEMINI_API_KEY)
             self._gemini_ready = True
 
         if DEEPSEEK_API_KEY and DEEPSEEK_API_KEY != "your_deepseek_api_key_here":
@@ -88,15 +90,17 @@ class LLMProvider:
 
     def _call_gemini(self, prompt: str, system_prompt: str,
                      temperature: float, max_tokens: int) -> str:
-        model = genai.GenerativeModel(
-            GEMINI_MODEL,
+        contents = prompt
+        config = types.GenerateContentConfig(
             system_instruction=system_prompt if system_prompt else None,
-            generation_config=genai.GenerationConfig(
-                temperature=temperature,
-                max_output_tokens=max_tokens,
-            ),
+            temperature=temperature,
+            max_output_tokens=max_tokens,
         )
-        response = model.generate_content(prompt)
+        response = self._gemini_client.models.generate_content(
+            model=GEMINI_MODEL,
+            contents=contents,
+            config=config,
+        )
         return response.text
 
     def _call_deepseek(self, prompt: str, system_prompt: str,

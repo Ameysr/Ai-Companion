@@ -5,7 +5,7 @@ numpy
 pandas
 plotly
 chromadb
-google-generativeai
+google-genai
 openai
 python-dotenv
 textblob
