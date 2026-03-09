@@ -42,7 +42,17 @@ orch = get_orchestrator()
 # Session State
 # ──────────────────────────────────────────────
 if "chat_messages" not in st.session_state:
-    st.session_state.chat_messages = []
+    # Load chat history from database so it persists across reloads
+    db_messages = orch.db.get_recent_messages(50)
+    loaded = []
+    for msg in db_messages:
+        entry = {"role": msg["role"], "content": msg["content"]}
+        if msg.get("emotion"):
+            entry["emotion"] = msg["emotion"]
+            entry["emotion_intensity"] = msg.get("emotion_intensity", 0.5)
+        loaded.append(entry)
+    st.session_state.chat_messages = loaded
+
 if "coaching_mode" not in st.session_state:
     st.session_state.coaching_mode = "advise"
 if "_last_input" not in st.session_state:
