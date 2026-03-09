@@ -69,7 +69,7 @@ class LLMProvider:
         if self._deepseek_client:
             return self._call_deepseek(prompt, system_prompt, temperature, max_tokens)
 
-        return "[No LLM configured. Please add GEMINI_API_KEY or DEEPSEEK_API_KEY to your .env file.]""
+        return "[No LLM configured. Please add GEMINI_API_KEY or DEEPSEEK_API_KEY to your .env file.]"
 
     def call_json(self, prompt: str, system_prompt: str = "",
                   temperature: float = 0.3) -> dict:
