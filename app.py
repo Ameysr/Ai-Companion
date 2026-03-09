@@ -288,6 +288,44 @@ with st.sidebar:
                     save_env_var("LLM_PROVIDER", "gemini")
                 st.success("Updated. Restart app to apply.")
 
+    st.markdown("---")
+
+    st.markdown('<p style="color:#666;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.08em;">Memory Management</p>', unsafe_allow_html=True)
+    try:
+        mem_size = orch.db.get_memory_size()
+        st.markdown(f"""
+        <div style="background:#111;border:1px solid #1e1e1e;border-radius:6px;padding:10px 12px;margin-bottom:8px;">
+            <p style="color:#888;font-size:0.75rem;margin:0;">DB Size: {mem_size['file_size_mb']} MB</p>
+            <p style="color:#666;font-size:0.7rem;margin:2px 0 0 0;">
+                {mem_size['entities']} entities -- {mem_size['total_facts']} facts -- {mem_size['messages']} msgs -- {mem_size['emotions']} emotions
+            </p>
+        </div>
+        """, unsafe_allow_html=True)
+    except Exception:
+        pass
+
+    if st.button("Compress Memory", key="compress_memory", use_container_width=True):
+        try:
+            result = orch.db.run_full_compression()
+            parts = []
+            if result["duplicates_merged"]:
+                parts.append(f"{result['duplicates_merged']} entities merged")
+            if result["facts_trimmed"]:
+                parts.append(f"{result['facts_trimmed']} facts trimmed")
+            if result["entities_deleted"]:
+                parts.append(f"{result['entities_deleted']} stale entities removed")
+            if result["messages_deleted"]:
+                parts.append(f"{result['messages_deleted']} old messages pruned")
+            if result["emotions_deleted"]:
+                parts.append(f"{result['emotions_deleted']} old emotions pruned")
+
+            if parts:
+                st.success("Compressed: " + ", ".join(parts))
+            else:
+                st.info("Memory is already clean. Nothing to compress.")
+        except Exception as e:
+            st.error(f"Compression failed: {e}")
+
 
 # ==================================================
 # LOGIC & SETUP
@@ -641,7 +679,10 @@ with tab_progress:
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 
     # Token usage section
-    token_usage = orch.llm.get_usage()
+    try:
+        token_usage = orch.llm.get_usage()
+    except AttributeError:
+        token_usage = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0, "total_requests": 0}
     st.markdown("### Token Usage (This Session)")
     t_col1, t_col2, t_col3, t_col4 = st.columns(4)
     with t_col1:

@@ -700,3 +700,166 @@ class Database:
             }
         finally:
             conn.close()
+
+    # ── Memory Consolidation ─────────────────────────
+
+    def get_memory_size(self) -> dict:
+        """Get database file size and row counts for key tables."""
+        import os
+        file_size = 0
+        try:
+            file_size = os.path.getsize(self.db_path)
+        except OSError:
+            pass
+
+        conn = self._get_conn()
+        try:
+            entity_count = conn.execute("SELECT COUNT(*) as c FROM entities").fetchone()["c"]
+            message_count = conn.execute("SELECT COUNT(*) as c FROM conversations").fetchone()["c"]
+            emotion_count = conn.execute("SELECT COUNT(*) as c FROM emotions").fetchone()["c"]
+            fact_count = 0
+            rows = conn.execute("SELECT facts FROM entities").fetchall()
+            for row in rows:
+                facts = json.loads(row["facts"] or "[]")
+                fact_count += len(facts)
+
+            return {
+                "file_size_bytes": file_size,
+                "file_size_mb": round(file_size / (1024 * 1024), 2),
+                "entities": entity_count,
+                "messages": message_count,
+                "emotions": emotion_count,
+                "total_facts": fact_count,
+            }
+        finally:
+            conn.close()
+
+    def consolidate_entities(self, max_facts: int = 5, stale_days: int = 30) -> dict:
+        """
+        Consolidate entity memory:
+        1. Cap facts per entity to max_facts (keep most recent/unique).
+        2. Delete stale entities (mention_count=1, older than stale_days).
+        Returns stats about what was cleaned.
+        """
+        conn = self._get_conn()
+        try:
+            stats = {"facts_trimmed": 0, "entities_deleted": 0, "duplicates_merged": 0}
+
+            # -- Step 1: Merge near-duplicate entities --
+            # Find entities whose names are substrings of other entities
+            all_entities = conn.execute(
+                "SELECT id, name, entity_type, facts, mention_count FROM entities ORDER BY mention_count DESC"
+            ).fetchall()
+
+            merged_ids = set()
+            for i, parent in enumerate(all_entities):
+                if parent["id"] in merged_ids:
+                    continue
+                parent_name = parent["name"].lower().strip()
+                parent_facts = json.loads(parent["facts"] or "[]")
+
+                for j, child in enumerate(all_entities):
+                    if i == j or child["id"] in merged_ids:
+                        continue
+                    child_name = child["name"].lower().strip()
+
+                    # Merge if child name contains parent name and they share the same type
+                    # e.g. "RUMIKAI internship strategy" contains "RUMIKAI"
+                    if (parent_name in child_name and parent_name != child_name
+                            and parent["entity_type"] == child["entity_type"]):
+                        child_facts = json.loads(child["facts"] or "[]")
+                        merged_facts = list(set(parent_facts + child_facts))
+                        parent_facts = merged_facts
+
+                        # Update parent with merged facts and combined mention count
+                        conn.execute(
+                            "UPDATE entities SET facts = ?, mention_count = mention_count + ? WHERE id = ?",
+                            (json.dumps(merged_facts), child["mention_count"], parent["id"])
+                        )
+                        # Delete the child
+                        conn.execute("DELETE FROM entities WHERE id = ?", (child["id"],))
+                        merged_ids.add(child["id"])
+                        stats["duplicates_merged"] += 1
+
+            # -- Step 2: Cap facts per entity --
+            remaining = conn.execute("SELECT id, facts FROM entities").fetchall()
+            for row in remaining:
+                facts = json.loads(row["facts"] or "[]")
+                if len(facts) > max_facts:
+                    trimmed = len(facts) - max_facts
+                    # Keep the last N facts (most recently added)
+                    capped = facts[-max_facts:]
+                    conn.execute(
+                        "UPDATE entities SET facts = ? WHERE id = ?",
+                        (json.dumps(capped), row["id"])
+                    )
+                    stats["facts_trimmed"] += trimmed
+
+            # -- Step 3: Delete stale entities --
+            cursor = conn.execute("""
+                DELETE FROM entities
+                WHERE mention_count <= 1
+                AND last_mentioned < datetime('now', ?)
+            """, (f"-{stale_days} days",))
+            stats["entities_deleted"] = cursor.rowcount
+
+            conn.commit()
+            return stats
+        finally:
+            conn.close()
+
+    def prune_old_messages(self, keep_days: int = 30, keep_minimum: int = 100) -> int:
+        """
+        Delete conversation messages older than keep_days,
+        but always preserve the most recent keep_minimum messages.
+        Returns the number of messages deleted.
+        """
+        conn = self._get_conn()
+        try:
+            # Find the ID threshold: keep at least keep_minimum messages
+            row = conn.execute("""
+                SELECT id FROM conversations ORDER BY created_at DESC LIMIT 1 OFFSET ?
+            """, (keep_minimum - 1,)).fetchone()
+
+            min_keep_id = row["id"] if row else 0
+
+            # Delete messages older than keep_days AND below the minimum-keep threshold
+            cursor = conn.execute("""
+                DELETE FROM conversations
+                WHERE created_at < datetime('now', ?)
+                AND id < ?
+            """, (f"-{keep_days} days", min_keep_id))
+
+            deleted = cursor.rowcount
+            conn.commit()
+            return deleted
+        finally:
+            conn.close()
+
+    def prune_old_emotions(self, keep_days: int = 60) -> int:
+        """Delete emotion log entries older than keep_days. Returns count deleted."""
+        conn = self._get_conn()
+        try:
+            cursor = conn.execute("""
+                DELETE FROM emotions
+                WHERE created_at < datetime('now', ?)
+            """, (f"-{keep_days} days",))
+            deleted = cursor.rowcount
+            conn.commit()
+            return deleted
+        finally:
+            conn.close()
+
+    def run_full_compression(self) -> dict:
+        """Run all memory consolidation steps. Returns combined stats."""
+        entity_stats = self.consolidate_entities()
+        messages_deleted = self.prune_old_messages()
+        emotions_deleted = self.prune_old_emotions()
+
+        return {
+            "entities_deleted": entity_stats["entities_deleted"],
+            "duplicates_merged": entity_stats["duplicates_merged"],
+            "facts_trimmed": entity_stats["facts_trimmed"],
+            "messages_deleted": messages_deleted,
+            "emotions_deleted": emotions_deleted,
+        }
