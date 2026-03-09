@@ -13,3 +13,5 @@ plyer
 fastapi
 uvicorn
 httpx
+pystray
+Pillow
