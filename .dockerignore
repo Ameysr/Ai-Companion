@@ -1,0 +1,10 @@
+__pycache__/
+*.pyc
+*.pyo
+data/
+.env
+.git/
+.gitignore
+*.egg-info/
+.DS_Store
+Thumbs.db

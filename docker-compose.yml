@@ -1,0 +1,15 @@
+services:
+  coach:
+    build: .
+    container_name: ai-coach
+    ports:
+      - "8501:8501"
+    volumes:
+      - coach_data:/app/data
+    env_file:
+      - .env
+    restart: unless-stopped
+
+volumes:
+  coach_data:
+    driver: local
