@@ -111,10 +111,30 @@ profile = orch.get_user_profile()
 user_name = profile.get("name", "User") if profile else "User"
 coach_name = profile.get("coach_name", "Coach") if profile else "Coach"
 
-# Auto-start notification scheduler
+# Auto-start notification scheduler + streak nudge
 if "notif_started" not in st.session_state:
     orch.start_notifications()
     st.session_state.notif_started = True
+
+    # Send streak reminder if applicable
+    streak = orch.get_streak()
+    if streak >= 2:
+        orch.notifier.send_streak_reminder(streak)
+    st.session_state.show_streak_nudge = streak >= 2 and streak > 0
+
+# Show streak nudge banner
+if st.session_state.get("show_streak_nudge"):
+    streak = orch.get_streak()
+    if streak >= 2:
+        st.markdown(f"""
+        <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:12px 18px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
+            <div>
+                <p style="color:#888;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Streak Alert</p>
+                <p style="color:#fff;font-size:0.95rem;margin:4px 0 0 0;">You're on a {streak}-day streak. Don't break it — check in today!</p>
+            </div>
+            <p style="color:#fff;font-size:2rem;font-weight:300;margin:0;">{streak}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
 # ── Sidebar: Settings ────────────────────────
 with st.sidebar:

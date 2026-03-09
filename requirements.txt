@@ -9,3 +9,4 @@ google-genai
 openai
 python-dotenv
 textblob
+plyer
