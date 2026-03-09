@@ -1,7 +1,7 @@
 """
 coach_agent.py — Main response generation agent.
 Takes full context (memory, emotions, entities, goals) and generates coaching responses.
-SHORT, PUNCHY responses — 2-3 sentences max.
+Coach LEADS the conversation — gives insights and direction, doesn't interrogate.
 """
 
 from config import DEFAULT_SYSTEM_PROMPT, TONE_INSTRUCTIONS
@@ -43,10 +43,10 @@ class CoachAgent:
         )
 
         mode_instructions = {
-            "listen": "Just listen. Validate. No advice.",
-            "advise": "One sharp piece of advice. No essays.",
-            "challenge": "Push them. One tough question.",
-            "celebrate": "Hype them up. Keep it real.",
+            "listen": "Acknowledge what they said. Validate. No advice needed.",
+            "advise": "Give one sharp, specific insight or action item. Lead the conversation.",
+            "challenge": "Push them with a hard truth. Be direct.",
+            "celebrate": "Recognize their win. Be real about it, not over-the-top.",
         }
 
         mode_text = mode_instructions.get(coaching_mode, mode_instructions["advise"])
@@ -62,7 +62,12 @@ class CoachAgent:
 
 USER: {user_message}
 
-Reply in 2-3 sentences max. Sound human, not like a chatbot. One question max."""
+RULES:
+- 2-3 sentences max. Sound like a real person.
+- LEAD the conversation. Give an insight, observation, or action item.
+- Do NOT end with a question unless the user explicitly asked for advice on a specific dilemma.
+- You are the teacher. Tell them what they need to hear, don't ask what they want to talk about.
+- No emojis. No bullet points."""
 
         response = self.llm.call(user_prompt, system_prompt=system_prompt,
                                  temperature=0.8, max_tokens=150)
@@ -96,10 +101,10 @@ Reply in 2-3 sentences max. Sound human, not like a chatbot. One question max.""
         )
 
         mode_instructions = {
-            "listen": "Just listen. Validate. No advice.",
-            "advise": "One sharp piece of advice. No essays.",
-            "challenge": "Push them. One tough question.",
-            "celebrate": "Hype them up. Keep it real.",
+            "listen": "Acknowledge what they said. Validate. No advice needed.",
+            "advise": "Give one sharp, specific insight or action item. Lead the conversation.",
+            "challenge": "Push them with a hard truth. Be direct.",
+            "celebrate": "Recognize their win. Be real about it, not over-the-top.",
         }
         mode_text = mode_instructions.get(coaching_mode, mode_instructions["advise"])
 
@@ -108,6 +113,12 @@ Reply in 2-3 sentences max. Sound human, not like a chatbot. One question max.""
 MODE: {mode_text}
 
 USER: "{user_message}"
+
+IMPORTANT RESPONSE RULES:
+- LEAD the conversation. Give insights and direction, not questions.
+- Do NOT end your response with a question unless the user specifically asked for help choosing between options.
+- You are the teacher. Observe, advise, direct. The user should just need to say "got it."
+- No emojis. No bullet points.
 
 Return JSON:
 {{
@@ -126,7 +137,7 @@ Return JSON:
         }}
     ],
     "facts_about_user": ["new facts about the user"],
-    "response": "2-3 sentence reply. Sound like a real friend, not a chatbot. One question max."
+    "response": "2-3 sentence reply. Lead the conversation. Give direction, not questions."
 }}
 
 Empty arrays if no entities or facts found."""
@@ -136,7 +147,7 @@ Empty arrays if no entities or facts found."""
         # Ensure required fields exist
         if "error" in result:
             response = self.llm.call(
-                f"MODE: {mode_text}\n\nUSER: {user_message}\n\nReply in 2-3 sentences. Sound human.",
+                f"MODE: {mode_text}\n\nUSER: {user_message}\n\nReply in 2-3 sentences. Lead with insight, not questions. No emojis.",
                 system_prompt=system_prompt,
                 temperature=0.8,
                 max_tokens=150,

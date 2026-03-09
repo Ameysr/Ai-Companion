@@ -1,6 +1,7 @@
 """
 app.py — AI Coach Companion: Main Streamlit Application
-4-tab interface: Chat, Daily Check-in, Progress Dashboard, Your World
+Floating side-panel chat + Dashboard tabs.
+Coach leads the conversation. User just listens and acts.
 """
 
 import streamlit as st
@@ -16,9 +17,9 @@ from config import COACHING_MODES, TONE_INSTRUCTIONS
 from squad_server import start_server as start_squad_server, is_running as squad_running
 from squad_client import SquadClient
 
-# ──────────────────────────────────────────────
+# --------------------------------------------------
 # Page Config
-# ──────────────────────────────────────────────
+# --------------------------------------------------
 st.set_page_config(
     page_title="AI Coach",
     page_icon="",
@@ -29,20 +30,19 @@ st.set_page_config(
 # Inject CSS
 st.markdown(MAIN_CSS, unsafe_allow_html=True)
 
-# ──────────────────────────────────────────────
+# --------------------------------------------------
 # Initialize Orchestrator (cached)
-# ──────────────────────────────────────────────
+# --------------------------------------------------
 @st.cache_resource
 def get_orchestrator():
     return Orchestrator()
 
 orch = get_orchestrator()
 
-# ──────────────────────────────────────────────
+# --------------------------------------------------
 # Session State
-# ──────────────────────────────────────────────
+# --------------------------------------------------
 if "chat_messages" not in st.session_state:
-    # Load chat history from database so it persists across reloads
     db_messages = orch.db.get_recent_messages(50)
     loaded = []
     for msg in db_messages:
@@ -58,16 +58,20 @@ if "coaching_mode" not in st.session_state:
 if "_last_input" not in st.session_state:
     st.session_state._last_input = ""
 if "squad_mode" not in st.session_state:
-    st.session_state.squad_mode = None  # None, "host", or "client"
+    st.session_state.squad_mode = None
 if "squad_id" not in st.session_state:
     st.session_state.squad_id = None
 if "squad_client" not in st.session_state:
     st.session_state.squad_client = SquadClient()
+if "chat_open" not in st.session_state:
+    st.session_state.chat_open = False
+if "session_step" not in st.session_state:
+    st.session_state.session_step = 0
 
 
-# ══════════════════════════════════════════════
+# ==================================================
 # API KEY SETUP (first-time only)
-# ══════════════════════════════════════════════
+# ==================================================
 from pathlib import Path
 env_path = Path(__file__).parent / ".env"
 
@@ -101,7 +105,7 @@ if not orch.llm.is_available:
 
     provider_choice = st.radio(
         "LLM Provider",
-        ["DeepSeek (recommended — cheap & fast)", "Google Gemini"],
+        ["DeepSeek (recommended -- cheap & fast)", "Google Gemini"],
         label_visibility="collapsed",
     )
 
@@ -112,7 +116,7 @@ if not orch.llm.is_available:
             if api_key.strip():
                 save_env_var("DEEPSEEK_API_KEY", api_key.strip())
                 save_env_var("LLM_PROVIDER", "deepseek")
-                st.success("Saved! Restarting app...")
+                st.success("Saved. Restarting app...")
                 import time as _t
                 _t.sleep(1)
                 st.rerun()
@@ -125,7 +129,7 @@ if not orch.llm.is_available:
             if api_key.strip():
                 save_env_var("GEMINI_API_KEY", api_key.strip())
                 save_env_var("LLM_PROVIDER", "gemini")
-                st.success("Saved! Restarting app...")
+                st.success("Saved. Restarting app...")
                 import time as _t
                 _t.sleep(1)
                 st.rerun()
@@ -134,15 +138,15 @@ if not orch.llm.is_available:
 
     st.markdown("""
     <div style="text-align:center;margin-top:40px;">
-        <p style="color:#333;font-size:0.7rem;">Your API key is stored locally in .env — never sent anywhere except the LLM provider.</p>
+        <p style="color:#333;font-size:0.7rem;">Your API key is stored locally in .env -- never sent anywhere except the LLM provider.</p>
     </div>
     """, unsafe_allow_html=True)
     st.stop()
 
 
-# ══════════════════════════════════════════════
+# ==================================================
 # ONBOARDING FLOW
-# ══════════════════════════════════════════════
+# ==================================================
 if not orch.is_onboarded():
     st.markdown('<p class="onboard-header">Welcome to your AI Coach</p>', unsafe_allow_html=True)
     st.markdown('<p class="onboard-sub">Let\'s set things up. This takes 30 seconds.</p>', unsafe_allow_html=True)
@@ -158,10 +162,10 @@ if not orch.is_onboarded():
     st.markdown('<p class="onboard-label">Coaching tone</p>', unsafe_allow_html=True)
     tone_options = list(TONE_INSTRUCTIONS.keys())
     tone_descriptions = {
-        "warm": "Warm — Supportive, encouraging, safe space",
-        "direct": "Direct — Honest, no fluff, actionable",
-        "tough-love": "Tough Love — Pushes you, calls out excuses",
-        "funny": "Funny — Uses humor, keeps it light",
+        "warm": "Warm -- Supportive, encouraging, safe space",
+        "direct": "Direct -- Honest, no fluff, actionable",
+        "tough-love": "Tough Love -- Pushes you, calls out excuses",
+        "funny": "Funny -- Uses humor, keeps it light",
     }
     selected_tone = st.radio(
         "Select tone",
@@ -197,9 +201,9 @@ if not orch.is_onboarded():
     st.stop()
 
 
-# ══════════════════════════════════════════════
+# ==================================================
 # MAIN APP (Post-Onboarding)
-# ══════════════════════════════════════════════
+# ==================================================
 profile = orch.get_user_profile()
 user_name = profile.get("name", "User") if profile else "User"
 coach_name = profile.get("coach_name", "Coach") if profile else "Coach"
@@ -209,7 +213,6 @@ if "notif_started" not in st.session_state:
     orch.start_notifications()
     st.session_state.notif_started = True
 
-    # Send streak reminder if applicable
     streak = orch.get_streak()
     if streak >= 2:
         orch.notifier.send_streak_reminder(streak)
@@ -223,13 +226,13 @@ if st.session_state.get("show_streak_nudge"):
         <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:12px 18px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;">
             <div>
                 <p style="color:#888;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Streak Alert</p>
-                <p style="color:#fff;font-size:0.95rem;margin:4px 0 0 0;">You're on a {streak}-day streak. Don't break it — check in today!</p>
+                <p style="color:#fff;font-size:0.95rem;margin:4px 0 0 0;">You're on a {streak}-day streak. Don't break it -- check in today.</p>
             </div>
             <p style="color:#fff;font-size:2rem;font-weight:300;margin:0;">{streak}</p>
         </div>
         """, unsafe_allow_html=True)
 
-# ── Sidebar: Settings ────────────────────────
+# -- Sidebar: Settings --
 with st.sidebar:
     st.markdown("### Settings")
 
@@ -257,7 +260,6 @@ with st.sidebar:
         if st.button("Test Nudge", key="test_nudge"):
             orch.notifier.send_motivational_nudge()
 
-
     st.markdown("---")
 
     st.markdown('<p style="color:#666;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.08em;">Email Digest</p>', unsafe_allow_html=True)
@@ -277,7 +279,7 @@ with st.sidebar:
         if st.button("Send Test Email", key="test_email"):
             success = orch.send_test_email()
             if success:
-                st.markdown('<p style="color:#555;font-size:0.8rem;">Email sent! Check your inbox.</p>', unsafe_allow_html=True)
+                st.markdown('<p style="color:#555;font-size:0.8rem;">Email sent. Check your inbox.</p>', unsafe_allow_html=True)
             else:
                 st.markdown('<p style="color:#555;font-size:0.8rem;">Failed to send. Check SMTP settings in .env</p>', unsafe_allow_html=True)
     else:
@@ -298,27 +300,156 @@ with st.sidebar:
                 else:
                     save_env_var("GEMINI_API_KEY", new_key.strip())
                     save_env_var("LLM_PROVIDER", "gemini")
-                st.success("Updated! Restart app to apply.")
+                st.success("Updated. Restart app to apply.")
 
 # Title
 st.markdown(f'<p class="app-title">AI Coach</p>', unsafe_allow_html=True)
-st.markdown(f'<p class="app-subtitle">Personal coaching for {user_name} — powered by memory</p>', unsafe_allow_html=True)
-
-# ──────────────────────────────────────────────
-# TABS
-# ──────────────────────────────────────────────
-tab_chat, tab_checkin, tab_progress, tab_world, tab_squad = st.tabs([
-    "Chat", "Daily Check-in", "Progress", "Your World", "Squad"
-])
+st.markdown(f'<p class="app-subtitle">Personal coaching for {user_name} -- powered by memory</p>', unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════
-# TAB 1: CHAT (Proactive)
-# ══════════════════════════════════════════════
-with tab_chat:
-    # Coaching mode selector
-    mode_col1, mode_col2 = st.columns([3, 1])
-    with mode_col2:
+# ==================================================
+# FLOATING CHAT PANEL (replaces the Chat tab)
+# ==================================================
+
+def _send_chat_message(user_text: str):
+    """Process a user message through the full pipeline."""
+    st.session_state.chat_messages.append({
+        "role": "user",
+        "content": user_text,
+    })
+
+    result = orch.process_message(user_text, st.session_state.coaching_mode)
+
+    st.session_state.chat_messages[-1]["emotion"] = result["emotion"].get("label", "")
+    st.session_state.chat_messages[-1]["emotion_intensity"] = result["emotion"].get("intensity", 0.5)
+
+    st.session_state.chat_messages.append({
+        "role": "coach",
+        "content": result["response"],
+    })
+
+    # Generate next quick replies (max 2)
+    try:
+        st.session_state.current_replies = orch.get_quick_replies(
+            result["response"], user_text, result["emotion"].get("label", "")
+        )
+    except Exception:
+        st.session_state.current_replies = ["Got it", "Not sure"]
+
+    # Advance session step
+    st.session_state.session_step += 1
+
+    # Goal update detection
+    goal_update = result.get("goal_update", {})
+    if goal_update.get("detected"):
+        st.session_state._pending_goal_update = goal_update
+
+    return result
+
+
+# -- Proactive Greeting (first load only) --
+if "greeted" not in st.session_state:
+    st.session_state.greeted = False
+
+if not st.session_state.greeted and len(st.session_state.chat_messages) == 0:
+    try:
+        greeting_data = orch.get_greeting()
+        greeting_text = greeting_data.get("greeting", f"Hey {user_name}. New session, let's make it count.")
+        quick_replies = greeting_data.get("quick_replies", ["Got it", "Not feeling it"])
+
+        st.session_state.chat_messages.append({
+            "role": "coach",
+            "content": greeting_text,
+        })
+        st.session_state.current_replies = quick_replies[:2]
+        st.session_state.greeted = True
+        # Auto-open the panel when coach has something to say
+        st.session_state.chat_open = True
+    except Exception:
+        st.session_state.chat_messages.append({
+            "role": "coach",
+            "content": f"Hey {user_name}. Let's get to work.",
+        })
+        st.session_state.current_replies = ["Ready", "Not today"]
+        st.session_state.greeted = True
+        st.session_state.chat_open = True
+
+# -- Proactive Nudge --
+if "nudge_shown" not in st.session_state:
+    st.session_state.nudge_shown = False
+if "pending_nudge" not in st.session_state:
+    st.session_state.pending_nudge = None
+
+if not st.session_state.nudge_shown and len(st.session_state.chat_messages) > 0:
+    try:
+        nudge = orch.get_proactive_nudge()
+        if nudge and nudge.get("message"):
+            st.session_state.pending_nudge = nudge
+    except Exception:
+        pass
+    st.session_state.nudge_shown = True
+
+# Initialize quick replies
+if "current_replies" not in st.session_state:
+    st.session_state.current_replies = []
+
+# -- Chat toggle button --
+if st.session_state.chat_open:
+    if st.button("x  Close Chat", key="close_chat_btn"):
+        st.session_state.chat_open = False
+        st.rerun()
+else:
+    # Show the floating button to open chat
+    has_notification = st.session_state.pending_nudge is not None
+    notif_dot = '<span class="chat-fab-dot"></span>' if has_notification else ''
+
+    st.markdown(f"""
+    <style>
+        div[data-testid="stButton"] > button#open_chat_trigger {{
+            position: fixed !important;
+            bottom: 28px !important;
+            right: 28px !important;
+            width: 56px !important;
+            height: 56px !important;
+            border-radius: 50% !important;
+            padding: 0 !important;
+            z-index: 9998 !important;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.5) !important;
+            font-size: 1.1rem !important;
+            min-height: 0 !important;
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+
+
+# ==================================================
+# CHAT PANEL UI (when open)
+# ==================================================
+if st.session_state.chat_open:
+    # Use a container with custom styling to simulate the floating panel
+    st.markdown("""
+    <style>
+        /* Make the chat section look like a floating panel */
+        div[data-testid="stExpander"].chat-panel-container {
+            position: fixed;
+            bottom: 96px;
+            right: 28px;
+            width: 380px;
+            z-index: 9999;
+        }
+    </style>
+    """, unsafe_allow_html=True)
+
+    # Panel header
+    panel_col1, panel_col2 = st.columns([4, 1])
+    with panel_col1:
+        st.markdown(f"""
+        <div style="padding:4px 0;">
+            <p style="color:#fff;font-size:0.95rem;font-weight:500;margin:0;">{coach_name}</p>
+            <p style="color:#555;font-size:0.7rem;margin:2px 0 0 0;font-weight:300;">coaching session active</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with panel_col2:
         mode_labels = {
             "listen": "Listen",
             "advise": "Advise",
@@ -335,184 +466,118 @@ with tab_chat:
         )
         st.session_state.coaching_mode = selected_mode
 
-    # ── Proactive Greeting (first load only) ──────
-    if "greeted" not in st.session_state:
-        st.session_state.greeted = False
+    st.markdown('<hr style="border:none;border-top:1px solid #1a1a1a;margin:4px 0 8px 0;">', unsafe_allow_html=True)
 
-    if not st.session_state.greeted and len(st.session_state.chat_messages) == 0:
-        try:
-            greeting_data = orch.get_greeting()
-            greeting_text = greeting_data.get("greeting", f"What's on your mind, {user_name}?")
-            quick_replies = greeting_data.get("quick_replies", ["Feeling good", "Need advice", "Just venting"])
+    # -- Nudge banner (if any) --
+    nudge = st.session_state.pending_nudge
+    if nudge:
+        st.markdown(f"""
+        <div class="coach-insight">
+            <p class="coach-insight-type">{nudge.get('type', 'nudge')}</p>
+            <p class="coach-insight-text">{nudge['message']}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-            st.session_state.chat_messages.append({
-                "role": "coach",
-                "content": greeting_text,
-            })
-            st.session_state.current_replies = quick_replies
-            st.session_state.greeted = True
-        except Exception:
-            st.session_state.chat_messages.append({
-                "role": "coach",
-                "content": f"What's going on today, {user_name}?",
-            })
-            st.session_state.current_replies = ["Making progress", "Stuck on something", "Just checking in"]
-            st.session_state.greeted = True
+        nudge_replies = nudge.get("quick_replies", [])
+        if nudge_replies:
+            nudge_cols = st.columns(len(nudge_replies))
+            for i, reply in enumerate(nudge_replies):
+                with nudge_cols[i]:
+                    if st.button(reply, key=f"nudge_{i}"):
+                        st.session_state._last_input = ""
+                        _send_chat_message(reply)
+                        st.session_state.pending_nudge = None
+                        st.rerun()
 
-    # ── Proactive Nudge Banner ────────────────────
-    if "nudge_shown" not in st.session_state:
-        st.session_state.nudge_shown = False
+    # -- Display Chat History --
+    # Create a scrollable container for messages
+    chat_container = st.container(height=360)
+    with chat_container:
+        for msg in st.session_state.chat_messages:
+            if msg["role"] == "user":
+                st.markdown(f'<div class="panel-msg-user">{msg["content"]}</div>', unsafe_allow_html=True)
+            else:
+                st.markdown(f'<div class="panel-msg-coach">{msg["content"]}</div>', unsafe_allow_html=True)
 
-    if not st.session_state.nudge_shown and len(st.session_state.chat_messages) > 0:
-        try:
-            nudge = orch.get_proactive_nudge()
-            if nudge and nudge.get("message"):
-                st.markdown(f"""
-                <div style="background:#111;border-left:3px solid #333;border-radius:0 8px 8px 0;padding:12px 16px;margin-bottom:12px;">
-                    <p style="color:#888;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 4px 0;">{nudge.get('type', 'nudge')}</p>
-                    <p style="color:#ddd;font-size:0.9rem;margin:0;">{nudge['message']}</p>
-                </div>
-                """, unsafe_allow_html=True)
+        # -- Session agenda delivery --
+        # After 3 exchanges, if we have an agenda, show the closing summary
+        if st.session_state.session_step >= 3 and "session_closed" not in st.session_state:
+            try:
+                agenda_data = orch.proactive.get_session_agenda()
+                if agenda_data and "closing" in agenda_data:
+                    closing = agenda_data.get("closing", "")
+                    if closing:
+                        st.markdown(f"""
+                        <div class="session-summary">
+                            <p class="session-summary-title">today's game plan</p>
+                            <p class="session-summary-item">{closing}</p>
+                        </div>
+                        """, unsafe_allow_html=True)
+            except Exception:
+                pass
 
-                nudge_replies = nudge.get("quick_replies", [])
-                if nudge_replies:
-                    nudge_cols = st.columns(len(nudge_replies))
-                    for i, reply in enumerate(nudge_replies):
-                        with nudge_cols[i]:
-                            if st.button(reply, key=f"nudge_{i}"):
-                                st.session_state._last_input = ""
-                                st.session_state.chat_messages.append({"role": "user", "content": reply})
-                                result = orch.process_message(reply, st.session_state.coaching_mode)
-                                st.session_state.chat_messages.append({"role": "coach", "content": result["response"]})
-                                try:
-                                    st.session_state.current_replies = orch.get_quick_replies(
-                                        result["response"], reply, result["emotion"].get("label", "")
-                                    )
-                                except Exception:
-                                    st.session_state.current_replies = ["Got it", "Tell me more", "What else?"]
-                                st.session_state.nudge_shown = True
-                                st.rerun()
-        except Exception:
-            pass
-        st.session_state.nudge_shown = True
+    # -- Goal update notification --
+    if st.session_state.get("_pending_goal_update"):
+        gu = st.session_state._pending_goal_update
+        goal_title = gu.get("goal_title", "")
+        current = gu.get("current_progress", 0)
+        suggested = gu.get("suggested_progress", 0)
+        reason = gu.get("reason", "")
+        goal_id = gu.get("goal_id")
 
-    # ── Display Chat History ──────────────────────
-    for msg in st.session_state.chat_messages:
-        if msg["role"] == "user":
-            st.markdown(f'<div class="chat-user">{msg["content"]}</div>', unsafe_allow_html=True)
-            if msg.get("emotion"):
-                intensity = msg.get("emotion_intensity", 0.5)
-                tag_class = "emotion-tag-strong" if intensity > 0.6 else "emotion-tag"
-                st.markdown(
-                    f'<span class="{tag_class}">{msg["emotion"]}</span>',
-                    unsafe_allow_html=True,
-                )
-        else:
-            st.markdown(f'<div class="chat-coach">{msg["content"]}</div>', unsafe_allow_html=True)
+        st.markdown(f"""
+        <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:10px 14px;margin:4px 0;">
+            <p style="color:#888;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 4px 0;">Goal Progress Detected</p>
+            <p style="color:#fff;font-size:0.88rem;margin:0;">{goal_title}: {current}% to {suggested}%</p>
+            <p style="color:#555;font-size:0.75rem;margin:2px 0 0 0;">{reason}</p>
+        </div>
+        """, unsafe_allow_html=True)
 
-    # ── Quick Reply Buttons ───────────────────────
-    if "current_replies" not in st.session_state:
-        st.session_state.current_replies = []
+        if st.button(f"Update to {suggested}%", key=f"goal_up_{goal_id}"):
+            orch.goal_detector_apply(goal_id, suggested)
+            st.session_state._pending_goal_update = None
+            st.rerun()
 
+    # -- Quick Reply Buttons (max 2) --
     replies = st.session_state.current_replies
     if replies:
         reply_cols = st.columns(len(replies))
         for i, reply in enumerate(replies):
             with reply_cols[i]:
                 if st.button(reply, key=f"qr_{i}_{len(st.session_state.chat_messages)}"):
-                    st.session_state.chat_messages.append({"role": "user", "content": reply})
-
-                    result = orch.process_message(reply, st.session_state.coaching_mode)
-
-                    st.session_state.chat_messages[-1]["emotion"] = result["emotion"].get("label", "")
-                    st.session_state.chat_messages[-1]["emotion_intensity"] = result["emotion"].get("intensity", 0.5)
-                    st.session_state.chat_messages.append({"role": "coach", "content": result["response"]})
-
-                    # Generate next quick replies
-                    try:
-                        st.session_state.current_replies = orch.get_quick_replies(
-                            result["response"], reply, result["emotion"].get("label", "")
-                        )
-                    except Exception:
-                        st.session_state.current_replies = ["Got it", "Tell me more", "What else?"]
-
+                    _send_chat_message(reply)
                     st.rerun()
 
-    # ── Text Input (still available) ──────────────
-    user_input = st.chat_input(f"Or type your own message...")
+    # -- Text Input --
+    user_input = st.chat_input(f"Or type something...")
 
     if user_input and user_input != st.session_state._last_input:
         st.session_state._last_input = user_input
-
-        st.session_state.chat_messages.append({
-            "role": "user",
-            "content": user_input,
-        })
-
-        st.markdown(f'<div class="chat-user">{user_input}</div>', unsafe_allow_html=True)
-
-        typing_placeholder = st.empty()
-        typing_placeholder.markdown(
-            '<div class="chat-coach" style="color:#444;font-style:italic;">thinking...</div>',
-            unsafe_allow_html=True,
-        )
-
-        result = orch.process_message(user_input, st.session_state.coaching_mode)
-        typing_placeholder.empty()
-
-        st.session_state.chat_messages[-1]["emotion"] = result["emotion"].get("label", "")
-        st.session_state.chat_messages[-1]["emotion_intensity"] = result["emotion"].get("intensity", 0.5)
-
-        response_text = result["response"]
-        response_placeholder = st.empty()
-        streamed = ""
-        words = response_text.split(" ")
-        for word in words:
-            streamed += word + " "
-            response_placeholder.markdown(
-                f'<div class="chat-coach">{streamed.strip()}</div>',
-                unsafe_allow_html=True,
-            )
-            time.sleep(0.03)
-
-        st.session_state.chat_messages.append({
-            "role": "coach",
-            "content": response_text,
-        })
-
-        # Generate quick replies for next turn
-        try:
-            emotion_label = result["emotion"].get("label", "")
-            st.session_state.current_replies = orch.get_quick_replies(
-                response_text, user_input, emotion_label
-            )
-        except Exception:
-            st.session_state.current_replies = ["Got it", "Tell me more", "What else?"]
-
-        # Goal update detection
-        goal_update = result.get("goal_update", {})
-        if goal_update.get("detected"):
-            goal_title = goal_update.get("goal_title", "")
-            current = goal_update.get("current_progress", 0)
-            suggested = goal_update.get("suggested_progress", 0)
-            reason = goal_update.get("reason", "")
-            goal_id = goal_update.get("goal_id")
-
-            st.markdown(f"""
-            <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:14px 18px;margin:8px 0;">
-                <p style="color:#888;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 6px 0;">Goal Progress Detected</p>
-                <p style="color:#fff;font-size:0.95rem;margin:0;">{goal_title}: {current}% to {suggested}%</p>
-                <p style="color:#666;font-size:0.8rem;margin:4px 0 0 0;">{reason}</p>
-            </div>
-            """, unsafe_allow_html=True)
-
-            if st.button(f"Update to {suggested}%", key=f"goal_up_{goal_id}"):
-                orch.goal_detector_apply(goal_id, suggested)
+        _send_chat_message(user_input)
+        st.rerun()
 
 
-# ══════════════════════════════════════════════
-# TAB 2: DAILY CHECK-IN
-# ══════════════════════════════════════════════
+# Open chat button at the bottom (only when chat is closed)
+if not st.session_state.chat_open:
+    st.markdown("<br>", unsafe_allow_html=True)
+    open_col1, open_col2, open_col3 = st.columns([5, 2, 5])
+    with open_col2:
+        if st.button("Open Coach", key="open_chat_main"):
+            st.session_state.chat_open = True
+            st.rerun()
+
+
+# --------------------------------------------------
+# TABS (no more Chat tab)
+# --------------------------------------------------
+tab_checkin, tab_progress, tab_world, tab_squad = st.tabs([
+    "Daily Check-in", "Progress", "Your World", "Squad"
+])
+
+
+# ==================================================
+# TAB 1: DAILY CHECK-IN
+# ==================================================
 with tab_checkin:
     streak = orch.get_streak()
 
@@ -612,14 +677,12 @@ with tab_checkin:
 
     # Submit check-in
     if st.button("Submit Check-in", use_container_width=True, key="submit_checkin"):
-        # Update goals
         for gu in goals_updated:
             orch.update_goal(gu["id"], progress=gu["progress"])
             if gu["progress"] >= 100:
                 orch.update_goal(gu["id"], status="completed",
                                 completed_at=datetime.now().isoformat())
 
-        # Save check-in
         orch.add_checkin(mood_score, mood_label, checkin_note,
                          [g["id"] for g in goals_updated])
 
@@ -630,9 +693,9 @@ with tab_checkin:
         """, unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════
-# TAB 3: PROGRESS DASHBOARD
-# ══════════════════════════════════════════════
+# ==================================================
+# TAB 2: PROGRESS DASHBOARD
+# ==================================================
 with tab_progress:
     stats = orch.get_memory_stats()
 
@@ -677,7 +740,6 @@ with tab_progress:
         df = pd.DataFrame(mood_data)
         df["timestamp"] = pd.to_datetime(df["timestamp"])
 
-        # Map emotions to numeric values for graphing
         emotion_values = {
             "joy": 9, "excitement": 9, "pride": 8, "love": 8, "gratitude": 8,
             "hope": 7, "determination": 7, "relief": 7,
@@ -768,7 +830,7 @@ with tab_progress:
                 <div class="progress-bar-bg">
                     <div class="progress-bar-fill" style="width: {goal['progress']}%"></div>
                 </div>
-                <p class="goal-progress">{goal['progress']}% — {goal.get('category', 'general')}</p>
+                <p class="goal-progress">{goal['progress']}% -- {goal.get('category', 'general')}</p>
             </div>
             """, unsafe_allow_html=True)
     else:
@@ -779,9 +841,9 @@ with tab_progress:
         """, unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════
-# TAB 4: YOUR WORLD
-# ══════════════════════════════════════════════
+# ==================================================
+# TAB 3: YOUR WORLD
+# ==================================================
 with tab_world:
     st.markdown("### People and Entities")
     st.markdown('<p style="color:#666;font-size:0.85rem;font-weight:300;">Everyone and everything your coach knows about.</p>', unsafe_allow_html=True)
@@ -806,7 +868,7 @@ with tab_world:
                 </div>
                 <p class="entity-detail">{entity.get('relationship', '') or 'Relationship not yet known'}</p>
                 {facts_html}
-                <p style="color:#333;font-size:0.7rem;margin:8px 0 0 0;">First: {entity['first_seen']} — Last: {entity['last_seen']}</p>
+                <p style="color:#333;font-size:0.7rem;margin:8px 0 0 0;">First: {entity['first_seen']} -- Last: {entity['last_seen']}</p>
             </div>
             """, unsafe_allow_html=True)
     else:
@@ -826,7 +888,7 @@ with tab_world:
         st.markdown(f"""
         <div class="metric-card" style="text-align:left;">
             <p style="color:#ffffff;font-size:1rem;margin:0;font-weight:400;">{profile.get('name', 'User')}</p>
-            <p style="color:#666;font-size:0.8rem;margin:4px 0;">Tone: {profile.get('preferred_tone', 'warm')} — Coach: {profile.get('coach_name', 'Coach')}</p>
+            <p style="color:#666;font-size:0.8rem;margin:4px 0;">Tone: {profile.get('preferred_tone', 'warm')} -- Coach: {profile.get('coach_name', 'Coach')}</p>
             <p style="color:#666;font-size:0.8rem;margin:0;">Focus: {areas_text}</p>
             <p style="color:#333;font-size:0.7rem;margin:8px 0 0 0;">Member since {profile.get('created_at', 'unknown')}</p>
         </div>
@@ -859,27 +921,27 @@ with tab_world:
         """, unsafe_allow_html=True)
 
 
-# ──────────────────────────────────────────────
+# --------------------------------------------------
 # Footer
-# ──────────────────────────────────────────────
+# --------------------------------------------------
 st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 st.markdown("""
 <div style="text-align:center;padding:16px 0;">
     <p style="color:#2a2a2a;font-size:0.75rem;letter-spacing:0.05em;">
-        AI Coach Companion — Local-first, memory-powered personal coaching
+        AI Coach Companion -- Local-first, memory-powered personal coaching
     </p>
 </div>
 """, unsafe_allow_html=True)
 
 
-# ══════════════════════════════════════════════
-# TAB 5: SQUAD
-# ══════════════════════════════════════════════
+# ==================================================
+# TAB 4: SQUAD
+# ==================================================
 with tab_squad:
     st.markdown('<p style="color:#888;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;">Squad Goals</p>', unsafe_allow_html=True)
     st.markdown('<p style="color:#555;font-size:0.85rem;">Shared goals with your friends. Your private chat and emotions are never shared.</p>', unsafe_allow_html=True)
 
-    # ── Setup: Create or Join ──────────────────
+    # -- Setup: Create or Join --
     if st.session_state.squad_mode is None:
         st.markdown("---")
         setup_col1, setup_col2 = st.columns(2)
@@ -894,7 +956,6 @@ with tab_squad:
                     squad_id = orch.db.create_squad(squad_name, invite_code, user_name)
                     orch.db.add_squad_member(squad_id, user_name, is_self=True)
 
-                    # Start the sync server
                     port = start_squad_server(orch.db)
 
                     st.session_state.squad_mode = "host"
@@ -917,7 +978,7 @@ with tab_squad:
                         st.session_state.squad_id = result["squad_id"]
                         st.rerun()
 
-    # ── Host View ─────────────────────────────────
+    # -- Host View --
     elif st.session_state.squad_mode == "host":
         squad_id = st.session_state.squad_id
         squad = orch.db.get_squad(squad_id=squad_id)
@@ -925,7 +986,6 @@ with tab_squad:
         if not squad_running():
             start_squad_server(orch.db)
 
-        # Squad header
         import socket
         try:
             local_ip = socket.gethostbyname(socket.gethostname())
@@ -948,14 +1008,12 @@ with tab_squad:
         </div>
         """, unsafe_allow_html=True)
 
-        # Members
         members = orch.db.get_squad_members(squad_id)
         member_names = [m["member_name"] for m in members]
         st.markdown(f'<p style="color:#666;font-size:0.75rem;">Members: {" / ".join(member_names)}</p>', unsafe_allow_html=True)
 
         st.markdown("---")
 
-        # Add goal
         goal_col1, goal_col2 = st.columns([3, 1])
         with goal_col1:
             new_goal = st.text_input("Add shared goal", placeholder="e.g. DSA daily for 30 days", key="sq_goal_input", label_visibility="collapsed")
@@ -965,7 +1023,6 @@ with tab_squad:
                     orch.db.add_squad_goal(squad_id, new_goal)
                     st.rerun()
 
-        # Goals + progress
         goals = orch.db.get_squad_goals(squad_id)
         leaderboard = orch.db.get_squad_leaderboard(squad_id)
 
@@ -976,7 +1033,6 @@ with tab_squad:
             </div>
             """, unsafe_allow_html=True)
 
-            # Show each member's progress for this goal
             goal_entries = [e for e in leaderboard if e["goal_id"] == goal["id"]]
             for entry in goal_entries:
                 bar_color = "#fff" if entry["member_name"] == user_name else "#555"
@@ -991,7 +1047,6 @@ with tab_squad:
                 </div>
                 """, unsafe_allow_html=True)
 
-            # Update my progress
             my_member = next((m for m in members if m["is_self"]), None)
             if my_member:
                 my_entry = next((e for e in goal_entries if e["member_id"] == my_member["id"]), None)
@@ -1004,7 +1059,6 @@ with tab_squad:
                 if new_prog != current_prog:
                     orch.db.update_squad_goal_progress(goal["id"], my_member["id"], new_prog)
 
-        # Leaderboard summary
         if goals:
             st.markdown("---")
             st.markdown('<p style="color:#888;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;">Leaderboard</p>', unsafe_allow_html=True)
@@ -1018,16 +1072,14 @@ with tab_squad:
                 </div>
                 """, unsafe_allow_html=True)
 
-    # ── Client View ───────────────────────────────
+    # -- Client View --
     elif st.session_state.squad_mode == "client":
         client = st.session_state.squad_client
 
-        # Fetch data from host
         leaderboard_data = client.get_leaderboard()
         goals = client.get_goals()
         motivation = client.get_motivation()
 
-        # Motivation banner
         if motivation.get("message"):
             st.markdown(f"""
             <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:14px 18px;margin-bottom:16px;">
@@ -1035,7 +1087,6 @@ with tab_squad:
             </div>
             """, unsafe_allow_html=True)
 
-        # Goals + update progress
         for goal in goals:
             st.markdown(f"""
             <div style="background:#0f0f0f;border:1px solid #1a1a1a;border-radius:6px;padding:12px 16px;margin-bottom:8px;">
@@ -1043,7 +1094,6 @@ with tab_squad:
             </div>
             """, unsafe_allow_html=True)
 
-            # Show leaderboard entries for this goal
             goal_entries = [e for e in leaderboard_data.get("leaderboard", []) if e["goal_id"] == goal["id"]]
             for entry in goal_entries:
                 is_me = " (you)" if entry["member_name"].lower() == user_name.lower() else ""
@@ -1067,7 +1117,6 @@ with tab_squad:
                 client.update_progress(goal["id"], new_prog)
                 st.rerun()
 
-        # Add goal (anyone can)
         st.markdown("---")
         new_goal_client = st.text_input("Add shared goal", placeholder="e.g. Read 1 chapter daily", key="sq_client_goal")
         if st.button("Add Goal", key="sq_client_add"):
@@ -1075,7 +1124,6 @@ with tab_squad:
                 client.create_goal(new_goal_client)
                 st.rerun()
 
-        # Leaderboard
         rankings = leaderboard_data.get("rankings", [])
         if rankings:
             st.markdown("---")
