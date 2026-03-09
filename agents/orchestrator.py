@@ -14,6 +14,7 @@ from agents.emotion_agent import EmotionAgent
 from agents.entity_tracker import EntityTracker
 from agents.coach_agent import CoachAgent
 from agents.coherence_guard import CoherenceGuard
+from agents.goal_detector import GoalDetector
 from notifications import NotificationManager
 from email_digest import EmailDigest
 from config import BATCH_EXTRACTION, USE_LOCAL_SENTIMENT
@@ -42,6 +43,7 @@ class Orchestrator:
         self.entities = EntityTracker(self.db, self.llm)
         self.coach = CoachAgent(self.llm, self.memory, self.emotion, self.entities, self.db)
         self.coherence = CoherenceGuard(self.llm, self.db, self.vs)
+        self.goal_detector = GoalDetector(self.llm, self.db)
 
         # Notifications
         self.notifier = NotificationManager(self.db)
@@ -141,11 +143,20 @@ class Orchestrator:
         # Update session
         self.db.update_session(self.session_id, message_count=self._message_count)
 
+        # ─── Step 5: Detect goal progress ─────────────────────
+        goal_update = {}
+        if self.db.get_active_goals():
+            try:
+                goal_update = self.goal_detector.detect_goal_update(user_message)
+            except Exception:
+                pass
+
         return {
             "response": response,
             "emotion": emotion_data,
             "entities": entities,
             "was_coherence_checked": was_checked,
+            "goal_update": goal_update,
         }
 
     def end_session(self):
@@ -179,6 +190,10 @@ class Orchestrator:
 
     def update_goal(self, goal_id: int, **kwargs):
         self.db.update_goal(goal_id, **kwargs)
+
+    def goal_detector_apply(self, goal_id: int, new_progress: int):
+        """Apply a smart goal update detected from chat."""
+        self.goal_detector.apply_update(goal_id, new_progress)
 
     def get_mood_trend(self, days: int = 30) -> list:
         return self.emotion.get_mood_trend(days)

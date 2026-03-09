@@ -271,6 +271,27 @@ with tab_chat:
                 unsafe_allow_html=True,
             )
 
+        # Show goal update suggestion if detected
+        goal_update = result.get("goal_update", {})
+        if goal_update.get("detected"):
+            goal_title = goal_update.get("goal_title", "")
+            current = goal_update.get("current_progress", 0)
+            suggested = goal_update.get("suggested_progress", 0)
+            reason = goal_update.get("reason", "")
+            goal_id = goal_update.get("goal_id")
+
+            st.markdown(f"""
+            <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:14px 18px;margin:8px 0;">
+                <p style="color:#888;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.08em;margin:0 0 6px 0;">Goal Progress Detected</p>
+                <p style="color:#fff;font-size:0.95rem;margin:0;">{goal_title}: {current}% → {suggested}%</p>
+                <p style="color:#666;font-size:0.8rem;margin:4px 0 0 0;">{reason}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if st.button(f"Update to {suggested}%", key=f"goal_up_{goal_id}_{self}"):
+                orch.goal_detector_apply(goal_id, suggested)
+                st.markdown('<p style="color:#555;font-size:0.8rem;">Goal updated!</p>', unsafe_allow_html=True)
+
 
 # ══════════════════════════════════════════════
 # TAB 2: DAILY CHECK-IN
