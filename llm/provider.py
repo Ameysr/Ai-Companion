@@ -9,7 +9,7 @@ from google.genai import types
 from openai import OpenAI
 from config import (
     GEMINI_API_KEY, DEEPSEEK_API_KEY,
-    GEMINI_MODEL, DEEPSEEK_MODEL, DEEPSEEK_BASE_URL,
+    GEMINI_MODEL, DEEPSEEK_MODEL, DEEPSEEK_BASE_URL, LLM_PROVIDER,
 )
 
 
@@ -37,6 +37,8 @@ class LLMProvider:
 
     @property
     def active_provider(self) -> str:
+        if LLM_PROVIDER == "deepseek" and self._deepseek_client:
+            return "DeepSeek"
         if self._gemini_ready:
             return "Gemini"
         elif self._deepseek_client:
@@ -45,7 +47,17 @@ class LLMProvider:
 
     def call(self, prompt: str, system_prompt: str = "",
              temperature: float = 0.7, max_tokens: int = 1024) -> str:
-        """Call LLM with automatic fallback. Returns response text."""
+        """Call LLM with automatic fallback. Respects LLM_PROVIDER setting."""
+        # DeepSeek as primary
+        if LLM_PROVIDER == "deepseek" and self._deepseek_client:
+            try:
+                return self._call_deepseek(prompt, system_prompt, temperature, max_tokens)
+            except Exception as e:
+                if self._gemini_ready:
+                    return self._call_gemini(prompt, system_prompt, temperature, max_tokens)
+                raise e
+
+        # Gemini as primary (default)
         if self._gemini_ready:
             try:
                 return self._call_gemini(prompt, system_prompt, temperature, max_tokens)
@@ -57,7 +69,7 @@ class LLMProvider:
         if self._deepseek_client:
             return self._call_deepseek(prompt, system_prompt, temperature, max_tokens)
 
-        return "[No LLM configured. Please add GEMINI_API_KEY or DEEPSEEK_API_KEY to your .env file.]"
+        return "[No LLM configured. Please add GEMINI_API_KEY or DEEPSEEK_API_KEY to your .env file.]""
 
     def call_json(self, prompt: str, system_prompt: str = "",
                   temperature: float = 0.3) -> dict:

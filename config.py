@@ -26,8 +26,12 @@ DATA_DIR.mkdir(exist_ok=True)
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 DEEPSEEK_API_KEY = os.getenv("DEEPSEEK_API_KEY", "")
 
-GEMINI_MODEL = "gemini-2.0-flash"
-DEEPSEEK_MODEL = "deepseek-chat"
+# LLM_PROVIDER: "gemini" (default) or "deepseek"
+# Set in .env to force a specific provider
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "gemini").lower()
+
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-2.0-flash")
+DEEPSEEK_MODEL = os.getenv("DEEPSEEK_MODEL", "deepseek-chat")
 DEEPSEEK_BASE_URL = "https://api.deepseek.com"
 
 # ──────────────────────────────────────────────
