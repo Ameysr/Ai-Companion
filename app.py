@@ -111,6 +111,31 @@ profile = orch.get_user_profile()
 user_name = profile.get("name", "User") if profile else "User"
 coach_name = profile.get("coach_name", "Coach") if profile else "Coach"
 
+# Auto-start notification scheduler
+if "notif_started" not in st.session_state:
+    orch.start_notifications()
+    st.session_state.notif_started = True
+
+# ── Sidebar: Settings ────────────────────────
+with st.sidebar:
+    st.markdown("### Settings")
+
+    st.markdown('<p style="color:#666;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.08em;">Notifications</p>', unsafe_allow_html=True)
+    reminder_time = st.time_input(
+        "Daily reminder time",
+        value=datetime.strptime(orch.get_reminder_time(), "%H:%M").time(),
+        key="reminder_time",
+    )
+    if reminder_time:
+        orch.set_reminder_time(reminder_time.strftime("%H:%M"))
+
+    if st.button("Test Notification", key="test_notif"):
+        orch.send_test_notification()
+        st.markdown('<p style="color:#555;font-size:0.8rem;">Sent! Check your taskbar.</p>', unsafe_allow_html=True)
+
+    st.markdown("---")
+    st.markdown(f'<p style="color:#444;font-size:0.75rem;">Provider: {orch.llm.active_provider}</p>', unsafe_allow_html=True)
+
 # Title
 st.markdown(f'<p class="app-title">AI Coach</p>', unsafe_allow_html=True)
 st.markdown(f'<p class="app-subtitle">Personal coaching for {user_name} — powered by memory</p>', unsafe_allow_html=True)

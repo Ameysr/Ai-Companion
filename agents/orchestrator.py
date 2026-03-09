@@ -14,6 +14,7 @@ from agents.emotion_agent import EmotionAgent
 from agents.entity_tracker import EntityTracker
 from agents.coach_agent import CoachAgent
 from agents.coherence_guard import CoherenceGuard
+from notifications import NotificationManager
 from config import BATCH_EXTRACTION, USE_LOCAL_SENTIMENT
 
 
@@ -40,6 +41,9 @@ class Orchestrator:
         self.entities = EntityTracker(self.db, self.llm)
         self.coach = CoachAgent(self.llm, self.memory, self.emotion, self.entities, self.db)
         self.coherence = CoherenceGuard(self.llm, self.db, self.vs)
+
+        # Notifications
+        self.notifier = NotificationManager(self.db)
 
         # Session management
         self.session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}_{uuid.uuid4().hex[:6]}"
@@ -201,3 +205,21 @@ class Orchestrator:
 
     def get_emotion_summary(self, days: int = 7) -> dict:
         return self.db.get_emotion_summary(days)
+
+    # ─── Notifications ────────────────────────────
+
+    def start_notifications(self, checkin_time: str = "20:00"):
+        """Start background notification scheduler."""
+        self.notifier.start_scheduler(checkin_time)
+
+    def stop_notifications(self):
+        self.notifier.stop_scheduler()
+
+    def set_reminder_time(self, time_str: str):
+        self.notifier.set_checkin_time(time_str)
+
+    def get_reminder_time(self) -> str:
+        return self.notifier.get_checkin_time()
+
+    def send_test_notification(self):
+        self.notifier.send("AI Coach — Test", "Notifications are working!")
