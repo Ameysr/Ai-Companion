@@ -242,9 +242,21 @@ with st.sidebar:
     if reminder_time:
         orch.set_reminder_time(reminder_time.strftime("%H:%M"))
 
-    if st.button("Test Notification", key="test_notif"):
-        orch.send_test_notification()
-        st.markdown('<p style="color:#555;font-size:0.8rem;">Sent! Check your taskbar.</p>', unsafe_allow_html=True)
+    nudge_hours = st.slider(
+        "Motivational nudge every (hours)",
+        min_value=1, max_value=6, value=orch.notifier.get_nudge_interval(),
+        key="nudge_interval",
+    )
+    orch.notifier.set_nudge_interval(nudge_hours)
+
+    notif_col1, notif_col2 = st.columns(2)
+    with notif_col1:
+        if st.button("Test Reminder", key="test_notif"):
+            orch.send_test_notification()
+    with notif_col2:
+        if st.button("Test Nudge", key="test_nudge"):
+            orch.notifier.send_motivational_nudge()
+
 
     st.markdown("---")
 
