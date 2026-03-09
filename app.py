@@ -640,6 +640,41 @@ with tab_progress:
 
     st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
 
+    # Token usage section
+    token_usage = orch.llm.get_usage()
+    st.markdown("### Token Usage (This Session)")
+    t_col1, t_col2, t_col3, t_col4 = st.columns(4)
+    with t_col1:
+        st.markdown(f"""
+        <div class="metric-card">
+            <p class="metric-value">{token_usage['prompt_tokens']:,}</p>
+            <p class="metric-label">Prompt Tokens</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with t_col2:
+        st.markdown(f"""
+        <div class="metric-card">
+            <p class="metric-value">{token_usage['completion_tokens']:,}</p>
+            <p class="metric-label">Completion Tokens</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with t_col3:
+        st.markdown(f"""
+        <div class="metric-card">
+            <p class="metric-value">{token_usage['total_tokens']:,}</p>
+            <p class="metric-label">Total Tokens</p>
+        </div>
+        """, unsafe_allow_html=True)
+    with t_col4:
+        st.markdown(f"""
+        <div class="metric-card">
+            <p class="metric-value">{token_usage['total_requests']}</p>
+            <p class="metric-label">API Requests</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown('<hr class="section-divider">', unsafe_allow_html=True)
+
     p_col1, p_col2 = st.columns([2, 1], gap="large")
     with p_col1:
         st.markdown("### Emotional Trajectory")

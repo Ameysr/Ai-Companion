@@ -21,6 +21,11 @@ class LLMProvider:
         self._gemini_client = None
         self._deepseek_client = None
 
+        # Token usage tracking
+        self._total_prompt_tokens = 0
+        self._total_completion_tokens = 0
+        self._total_requests = 0
+
         if GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here":
             self._gemini_client = genai.Client(api_key=GEMINI_API_KEY)
             self._gemini_ready = True
@@ -30,6 +35,21 @@ class LLMProvider:
                 api_key=DEEPSEEK_API_KEY,
                 base_url=DEEPSEEK_BASE_URL,
             )
+
+    def get_usage(self) -> dict:
+        """Return cumulative token usage stats."""
+        return {
+            "prompt_tokens": self._total_prompt_tokens,
+            "completion_tokens": self._total_completion_tokens,
+            "total_tokens": self._total_prompt_tokens + self._total_completion_tokens,
+            "total_requests": self._total_requests,
+        }
+
+    def _track_usage(self, prompt_tokens: int, completion_tokens: int):
+        """Accumulate token counts."""
+        self._total_prompt_tokens += prompt_tokens
+        self._total_completion_tokens += completion_tokens
+        self._total_requests += 1
 
     @property
     def is_available(self) -> bool:
@@ -113,6 +133,16 @@ class LLMProvider:
             contents=contents,
             config=config,
         )
+        # Track token usage from Gemini response metadata
+        try:
+            usage = response.usage_metadata
+            if usage:
+                self._track_usage(
+                    getattr(usage, 'prompt_token_count', 0) or 0,
+                    getattr(usage, 'candidates_token_count', 0) or 0,
+                )
+        except Exception:
+            pass
         return response.text
 
     def _call_deepseek(self, prompt: str, system_prompt: str,
@@ -128,4 +158,14 @@ class LLMProvider:
             temperature=temperature,
             max_tokens=max_tokens,
         )
+        # Track token usage from DeepSeek/OpenAI response
+        try:
+            usage = response.usage
+            if usage:
+                self._track_usage(
+                    getattr(usage, 'prompt_tokens', 0) or 0,
+                    getattr(usage, 'completion_tokens', 0) or 0,
+                )
+        except Exception:
+            pass
         return response.choices[0].message.content
