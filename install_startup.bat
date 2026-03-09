@@ -2,38 +2,32 @@
 title AI Coach - Install Background Notifier
 echo.
 echo  ================================================
-echo    AI Coach - Install Background Notifier
+echo    AI Coach - Install to Windows Startup
 echo  ================================================
 echo.
-echo  This will make AI Coach start automatically
-echo  when your computer turns on. It runs silently
-echo  in the system tray and sends you notifications.
-echo.
 
-:: Get the startup folder path
 set STARTUP=%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup
-
-:: Get current directory
 set APP_DIR=%~dp0
 
-:: Create a VBS script that runs the notifier silently (no terminal window)
-echo Creating startup script...
+:: Copy the VBS launcher to startup folder
+copy /Y "%APP_DIR%start_notifier.vbs" "%STARTUP%\ai_coach_notifier.vbs" >nul
 
+:: But the startup copy needs the FULL path hardcoded
 (
 echo Set WshShell = CreateObject("WScript.Shell"^)
 echo WshShell.Run "pythonw ""%APP_DIR%notifier_bg.py""", 0, False
 ) > "%STARTUP%\ai_coach_notifier.vbs"
 
 echo.
-echo  [OK] Background notifier installed!
+echo  [OK] Installed! AI Coach will start automatically on boot.
 echo.
-echo  What happens now:
-echo    - Every time your PC starts, AI Coach runs silently
-echo    - You'll see a small white dot in your system tray
-echo    - Right-click it to open the full app or quit
-echo    - Notifications every %NUDGE_INTERVAL% hours (default: 3)
+echo  What happens:
+echo    - PC starts = notifier runs silently in background
+echo    - White dot in system tray (near clock)
+echo    - Right-click tray icon = Open app or Quit
+echo    - Notifications every 3 hours
 echo.
-echo  To uninstall: delete ai_coach_notifier.vbs from
-echo    %STARTUP%
+echo  To uninstall, delete this file:
+echo    %STARTUP%\ai_coach_notifier.vbs
 echo.
 pause
