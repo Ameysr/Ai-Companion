@@ -7,6 +7,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import plotly.express as px
 import pandas as pd
+import time
 from datetime import datetime
 
 from ui.styles import MAIN_CSS
@@ -171,21 +172,54 @@ with tab_chat:
             "content": user_input,
         })
 
+        # Show user message immediately
+        st.markdown(f'<div class="chat-user">{user_input}</div>', unsafe_allow_html=True)
+
+        # Typing indicator
+        typing_placeholder = st.empty()
+        typing_placeholder.markdown(
+            '<div class="chat-coach" style="color:#444;font-style:italic;">thinking...</div>',
+            unsafe_allow_html=True,
+        )
+
         # Process through orchestrator
-        with st.spinner(""):
-            result = orch.process_message(user_input, st.session_state.coaching_mode)
+        result = orch.process_message(user_input, st.session_state.coaching_mode)
+
+        # Clear typing indicator
+        typing_placeholder.empty()
 
         # Update user message with emotion
         st.session_state.chat_messages[-1]["emotion"] = result["emotion"].get("label", "")
         st.session_state.chat_messages[-1]["emotion_intensity"] = result["emotion"].get("intensity", 0.5)
 
-        # Add coach response
+        # Stream the response word by word
+        response_text = result["response"]
+        response_placeholder = st.empty()
+        streamed = ""
+        words = response_text.split(" ")
+        for i, word in enumerate(words):
+            streamed += word + " "
+            response_placeholder.markdown(
+                f'<div class="chat-coach">{streamed.strip()}</div>',
+                unsafe_allow_html=True,
+            )
+            time.sleep(0.03)
+
+        # Add coach response to state
         st.session_state.chat_messages.append({
             "role": "coach",
-            "content": result["response"],
+            "content": response_text,
         })
 
-        st.rerun()
+        # Show emotion tag
+        emotion_label = result["emotion"].get("label", "")
+        if emotion_label:
+            intensity = result["emotion"].get("intensity", 0.5)
+            tag_class = "emotion-tag-strong" if intensity > 0.6 else "emotion-tag"
+            st.markdown(
+                f'<span class="{tag_class}">{emotion_label}</span>',
+                unsafe_allow_html=True,
+            )
 
 
 # ══════════════════════════════════════════════

@@ -1,6 +1,7 @@
 """
 coach_agent.py — Main response generation agent.
 Takes full context (memory, emotions, entities, goals) and generates coaching responses.
+SHORT, PUNCHY responses — 2-3 sentences max.
 """
 
 from config import DEFAULT_SYSTEM_PROMPT, TONE_INSTRUCTIONS
@@ -41,35 +42,30 @@ class CoachAgent:
             recent_context=recent_context,
         )
 
-        # Build user prompt with coaching mode instruction
         mode_instructions = {
-            "listen": "The user needs to be heard right now. Listen, validate, empathize. Don't give advice unless asked.",
-            "advise": "Give thoughtful, actionable advice. Be practical but caring.",
-            "challenge": "Push the user to think bigger, call out excuses gently, encourage growth.",
-            "celebrate": "The user has good news or progress. Celebrate genuinely, reference their journey.",
+            "listen": "Just listen. Validate. No advice.",
+            "advise": "One sharp piece of advice. No essays.",
+            "challenge": "Push them. One tough question.",
+            "celebrate": "Hype them up. Keep it real.",
         }
 
         mode_text = mode_instructions.get(coaching_mode, mode_instructions["advise"])
 
-        # Add emotion awareness
         emotion_note = ""
         if emotion_data:
             label = emotion_data.get("label", "neutral")
             intensity = emotion_data.get("intensity", 0.5)
-            if intensity > 0.7:
-                emotion_note = f"\n[The user seems to be feeling strong {label} right now. Be especially attentive to this.]"
-            elif label not in ("neutral", "calm"):
-                emotion_note = f"\n[The user seems to be feeling {label}.]"
+            if intensity > 0.7 and label not in ("neutral", "calm"):
+                emotion_note = f"\n[User is feeling strong {label}.]"
 
-        user_prompt = f"""COACHING MODE: {mode_text}{emotion_note}
+        user_prompt = f"""MODE: {mode_text}{emotion_note}
 
-USER MESSAGE: {user_message}
+USER: {user_message}
 
-Respond naturally as their coach. Keep it conversational — not too long, not too short.
-Reference specific memories or facts when relevant. Don't be generic."""
+Reply in 2-3 sentences max. Sound human, not like a chatbot. One question max."""
 
         response = self.llm.call(user_prompt, system_prompt=system_prompt,
-                                 temperature=0.75, max_tokens=600)
+                                 temperature=0.8, max_tokens=150)
         return response.strip()
 
     def generate_batch_response(self, user_message: str, coaching_mode: str = "advise",
@@ -100,52 +96,50 @@ Reference specific memories or facts when relevant. Don't be generic."""
         )
 
         mode_instructions = {
-            "listen": "Listen, validate, empathize. Don't give advice unless asked.",
-            "advise": "Give thoughtful, actionable advice. Be practical but caring.",
-            "challenge": "Push the user to grow, call out excuses gently.",
-            "celebrate": "Celebrate genuinely, reference their journey.",
+            "listen": "Just listen. Validate. No advice.",
+            "advise": "One sharp piece of advice. No essays.",
+            "challenge": "Push them. One tough question.",
+            "celebrate": "Hype them up. Keep it real.",
         }
         mode_text = mode_instructions.get(coaching_mode, mode_instructions["advise"])
 
-        batch_prompt = f"""You are analyzing a user message AND generating a coaching response.
-Do BOTH tasks in a single JSON response.
+        batch_prompt = f"""Analyze this message AND generate a SHORT coaching response (2-3 sentences MAX).
 
-COACHING MODE: {mode_text}
+MODE: {mode_text}
 
-USER MESSAGE: "{user_message}"
+USER: "{user_message}"
 
-Return this exact JSON structure:
+Return JSON:
 {{
     "emotion": {{
         "label": "one of: joy, excitement, gratitude, love, pride, calm, neutral, curious, stress, anxiety, sadness, loneliness, self_doubt, anger, frustration, hurt, fear, determination, hope, relief",
         "secondary": "optional secondary emotion or empty string",
         "intensity": 0.0 to 1.0,
-        "trigger": "what specifically triggered this emotion, or empty string"
+        "trigger": "what triggered this emotion, or empty string"
     }},
     "entities": [
         {{
             "name": "entity name",
             "type": "person/place/event/thing",
             "relationship": "relationship to user if inferable",
-            "facts": ["new facts learned about this entity"]
+            "facts": ["new facts about this entity"]
         }}
     ],
-    "facts_about_user": ["any new facts learned about the user from this message"],
-    "response": "Your full coaching response here. Be conversational, reference memories when relevant, don't be generic."
+    "facts_about_user": ["new facts about the user"],
+    "response": "2-3 sentence reply. Sound like a real friend, not a chatbot. One question max."
 }}
 
-If no entities found, use empty array []. If no new facts, use empty array [].
-The response should feel natural and human."""
+Empty arrays if no entities or facts found."""
 
         result = self.llm.call_json(batch_prompt, system_prompt=system_prompt)
 
         # Ensure required fields exist
         if "error" in result:
-            # Fallback: generate just the response
             response = self.llm.call(
-                f"COACHING MODE: {mode_text}\n\nUSER: {user_message}\n\nRespond as their coach.",
+                f"MODE: {mode_text}\n\nUSER: {user_message}\n\nReply in 2-3 sentences. Sound human.",
                 system_prompt=system_prompt,
-                temperature=0.75,
+                temperature=0.8,
+                max_tokens=150,
             )
             return {
                 "emotion": {"label": "neutral", "secondary": "", "intensity": 0.5, "trigger": ""},
@@ -163,7 +157,5 @@ The response should feel natural and human."""
 
         lines = []
         for g in goals:
-            lines.append(f"- {g['title']} (progress: {g['progress']}%, category: {g['category']})")
-            if g.get("description"):
-                lines.append(f"  Description: {g['description']}")
+            lines.append(f"- {g['title']} ({g['progress']}%, {g['category']})")
         return "\n".join(lines)
