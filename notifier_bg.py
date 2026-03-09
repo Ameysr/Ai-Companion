@@ -190,12 +190,36 @@ def create_tray_icon():
 
 
 def open_app(icon, item):
-    """Open the Streamlit app in browser."""
-    subprocess.Popen(
-        ["streamlit", "run", str(PROJECT_DIR / "app.py")],
-        cwd=str(PROJECT_DIR),
-        creationflags=subprocess.CREATE_NO_WINDOW if sys.platform == "win32" else 0,
-    )
+    """Open the Streamlit app — launch it if not running, then open browser."""
+    import webbrowser
+    import urllib.request
+
+    app_url = "http://localhost:8501"
+
+    # Check if already running
+    try:
+        urllib.request.urlopen(app_url, timeout=1)
+        # Already running — just open browser
+        webbrowser.open(app_url)
+        return
+    except Exception:
+        pass
+
+    # Not running — start it
+    if sys.platform == "win32":
+        subprocess.Popen(
+            ["streamlit", "run", str(PROJECT_DIR / "app.py")],
+            cwd=str(PROJECT_DIR),
+        )
+    else:
+        subprocess.Popen(
+            ["streamlit", "run", str(PROJECT_DIR / "app.py")],
+            cwd=str(PROJECT_DIR),
+        )
+
+    # Wait a moment then open browser
+    time.sleep(3)
+    webbrowser.open(app_url)
 
 
 def quit_app(icon, item):
