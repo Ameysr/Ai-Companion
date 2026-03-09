@@ -13,6 +13,8 @@ from datetime import datetime
 from ui.styles import MAIN_CSS
 from agents.orchestrator import Orchestrator
 from config import COACHING_MODES, TONE_INSTRUCTIONS
+from squad_server import start_server as start_squad_server, is_running as squad_running
+from squad_client import SquadClient
 
 # ──────────────────────────────────────────────
 # Page Config
@@ -45,6 +47,12 @@ if "coaching_mode" not in st.session_state:
     st.session_state.coaching_mode = "advise"
 if "_last_input" not in st.session_state:
     st.session_state._last_input = ""
+if "squad_mode" not in st.session_state:
+    st.session_state.squad_mode = None  # None, "host", or "client"
+if "squad_id" not in st.session_state:
+    st.session_state.squad_id = None
+if "squad_client" not in st.session_state:
+    st.session_state.squad_client = SquadClient()
 
 
 # ══════════════════════════════════════════════
@@ -188,8 +196,8 @@ st.markdown(f'<p class="app-subtitle">Personal coaching for {user_name} — powe
 # ──────────────────────────────────────────────
 # TABS
 # ──────────────────────────────────────────────
-tab_chat, tab_checkin, tab_progress, tab_world = st.tabs([
-    "Chat", "Daily Check-in", "Progress", "Your World"
+tab_chat, tab_checkin, tab_progress, tab_world, tab_squad = st.tabs([
+    "Chat", "Daily Check-in", "Progress", "Your World", "Squad"
 ])
 
 
@@ -673,3 +681,223 @@ st.markdown("""
     </p>
 </div>
 """, unsafe_allow_html=True)
+
+
+# ══════════════════════════════════════════════
+# TAB 5: SQUAD
+# ══════════════════════════════════════════════
+with tab_squad:
+    st.markdown('<p style="color:#888;font-size:0.75rem;text-transform:uppercase;letter-spacing:0.1em;">Squad Goals</p>', unsafe_allow_html=True)
+    st.markdown('<p style="color:#555;font-size:0.85rem;">Shared goals with your friends. Your private chat and emotions are never shared.</p>', unsafe_allow_html=True)
+
+    # ── Setup: Create or Join ──────────────────
+    if st.session_state.squad_mode is None:
+        st.markdown("---")
+        setup_col1, setup_col2 = st.columns(2)
+
+        with setup_col1:
+            st.markdown('<p style="color:#999;font-size:0.85rem;font-weight:500;">Create a Squad</p>', unsafe_allow_html=True)
+            squad_name = st.text_input("Squad name", placeholder="e.g. Grind Gang", key="sq_name")
+            if st.button("Create Squad", key="create_squad"):
+                if squad_name:
+                    import uuid
+                    invite_code = uuid.uuid4().hex[:8].upper()
+                    squad_id = orch.db.create_squad(squad_name, invite_code, user_name)
+                    orch.db.add_squad_member(squad_id, user_name, is_self=True)
+
+                    # Start the sync server
+                    port = start_squad_server(orch.db)
+
+                    st.session_state.squad_mode = "host"
+                    st.session_state.squad_id = squad_id
+                    st.session_state.invite_code = invite_code
+                    st.rerun()
+
+        with setup_col2:
+            st.markdown('<p style="color:#999;font-size:0.85rem;font-weight:500;">Join a Squad</p>', unsafe_allow_html=True)
+            host_url = st.text_input("Host URL", placeholder="http://192.168.1.5:8502", key="sq_host")
+            join_code = st.text_input("Invite code", placeholder="e.g. A1B2C3D4", key="sq_code")
+            if st.button("Join Squad", key="join_squad"):
+                if host_url and join_code:
+                    client = st.session_state.squad_client
+                    result = client.connect(host_url, join_code, user_name)
+                    if "error" in result:
+                        st.error(result["error"])
+                    else:
+                        st.session_state.squad_mode = "client"
+                        st.session_state.squad_id = result["squad_id"]
+                        st.rerun()
+
+    # ── Host View ─────────────────────────────────
+    elif st.session_state.squad_mode == "host":
+        squad_id = st.session_state.squad_id
+        squad = orch.db.get_squad(squad_id=squad_id)
+
+        if not squad_running():
+            start_squad_server(orch.db)
+
+        # Squad header
+        import socket
+        try:
+            local_ip = socket.gethostbyname(socket.gethostname())
+        except Exception:
+            local_ip = "127.0.0.1"
+
+        st.markdown(f"""
+        <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:16px;margin-bottom:16px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <div>
+                    <p style="color:#fff;font-size:1.1rem;font-weight:400;margin:0;">{squad['name']}</p>
+                    <p style="color:#555;font-size:0.75rem;margin:4px 0 0 0;">You are the host</p>
+                </div>
+                <div style="text-align:right;">
+                    <p style="color:#888;font-size:0.65rem;text-transform:uppercase;letter-spacing:0.08em;margin:0;">Invite Code</p>
+                    <p style="color:#fff;font-size:1.2rem;font-weight:300;letter-spacing:0.15em;margin:0;">{squad['invite_code']}</p>
+                    <p style="color:#444;font-size:0.7rem;margin:4px 0 0 0;">http://{local_ip}:8502</p>
+                </div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Members
+        members = orch.db.get_squad_members(squad_id)
+        member_names = [m["member_name"] for m in members]
+        st.markdown(f'<p style="color:#666;font-size:0.75rem;">Members: {" / ".join(member_names)}</p>', unsafe_allow_html=True)
+
+        st.markdown("---")
+
+        # Add goal
+        goal_col1, goal_col2 = st.columns([3, 1])
+        with goal_col1:
+            new_goal = st.text_input("Add shared goal", placeholder="e.g. DSA daily for 30 days", key="sq_goal_input", label_visibility="collapsed")
+        with goal_col2:
+            if st.button("Add Goal", key="sq_add_goal"):
+                if new_goal:
+                    orch.db.add_squad_goal(squad_id, new_goal)
+                    st.rerun()
+
+        # Goals + progress
+        goals = orch.db.get_squad_goals(squad_id)
+        leaderboard = orch.db.get_squad_leaderboard(squad_id)
+
+        for goal in goals:
+            st.markdown(f"""
+            <div style="background:#0f0f0f;border:1px solid #1a1a1a;border-radius:6px;padding:12px 16px;margin-bottom:8px;">
+                <p style="color:#fff;font-size:0.9rem;margin:0 0 8px 0;">{goal['title']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Show each member's progress for this goal
+            goal_entries = [e for e in leaderboard if e["goal_id"] == goal["id"]]
+            for entry in goal_entries:
+                bar_color = "#fff" if entry["member_name"] == user_name else "#555"
+                is_me = " (you)" if entry["member_name"] == user_name else ""
+                st.markdown(f"""
+                <div style="display:flex;align-items:center;gap:10px;padding:4px 16px;">
+                    <p style="color:#888;font-size:0.8rem;width:100px;margin:0;">{entry['member_name']}{is_me}</p>
+                    <div style="flex:1;background:#1a1a1a;border-radius:3px;height:4px;overflow:hidden;">
+                        <div style="background:{bar_color};height:100%;width:{max(entry['progress'], 1)}%;border-radius:3px;"></div>
+                    </div>
+                    <p style="color:#666;font-size:0.75rem;width:40px;text-align:right;margin:0;">{entry['progress']}%</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+            # Update my progress
+            my_member = next((m for m in members if m["is_self"]), None)
+            if my_member:
+                my_entry = next((e for e in goal_entries if e["member_id"] == my_member["id"]), None)
+                current_prog = my_entry["progress"] if my_entry else 0
+                new_prog = st.number_input(
+                    f"Your progress", min_value=0, max_value=100,
+                    value=current_prog, key=f"sq_prog_{goal['id']}",
+                    label_visibility="collapsed",
+                )
+                if new_prog != current_prog:
+                    orch.db.update_squad_goal_progress(goal["id"], my_member["id"], new_prog)
+
+        # Leaderboard summary
+        if goals:
+            st.markdown("---")
+            st.markdown('<p style="color:#888;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;">Leaderboard</p>', unsafe_allow_html=True)
+            summary = orch.db.get_squad_summary(squad_id)
+            for i, rank in enumerate(summary["rankings"]):
+                medal = "" if i > 0 else "#1"
+                st.markdown(f"""
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #111;">
+                    <p style="color:#fff;font-size:0.9rem;margin:0;">{medal} {rank['name']}</p>
+                    <p style="color:#888;font-size:0.9rem;margin:0;">{rank['avg_progress']}% avg</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+    # ── Client View ───────────────────────────────
+    elif st.session_state.squad_mode == "client":
+        client = st.session_state.squad_client
+
+        # Fetch data from host
+        leaderboard_data = client.get_leaderboard()
+        goals = client.get_goals()
+        motivation = client.get_motivation()
+
+        # Motivation banner
+        if motivation.get("message"):
+            st.markdown(f"""
+            <div style="background:#111;border:1px solid #2a2a2a;border-radius:8px;padding:14px 18px;margin-bottom:16px;">
+                <p style="color:#fff;font-size:0.95rem;margin:0;">{motivation['message']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+        # Goals + update progress
+        for goal in goals:
+            st.markdown(f"""
+            <div style="background:#0f0f0f;border:1px solid #1a1a1a;border-radius:6px;padding:12px 16px;margin-bottom:8px;">
+                <p style="color:#fff;font-size:0.9rem;margin:0;">{goal['title']}</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            # Show leaderboard entries for this goal
+            goal_entries = [e for e in leaderboard_data.get("leaderboard", []) if e["goal_id"] == goal["id"]]
+            for entry in goal_entries:
+                is_me = " (you)" if entry["member_name"].lower() == user_name.lower() else ""
+                bar_color = "#fff" if is_me else "#555"
+                st.markdown(f"""
+                <div style="display:flex;align-items:center;gap:10px;padding:4px 16px;">
+                    <p style="color:#888;font-size:0.8rem;width:100px;margin:0;">{entry['member_name']}{is_me}</p>
+                    <div style="flex:1;background:#1a1a1a;border-radius:3px;height:4px;overflow:hidden;">
+                        <div style="background:{bar_color};height:100%;width:{max(entry['progress'], 1)}%;border-radius:3px;"></div>
+                    </div>
+                    <p style="color:#666;font-size:0.75rem;width:40px;text-align:right;margin:0;">{entry['progress']}%</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+            new_prog = st.number_input(
+                f"Your progress", min_value=0, max_value=100,
+                value=0, key=f"sq_client_prog_{goal['id']}",
+                label_visibility="collapsed",
+            )
+            if st.button("Update", key=f"sq_client_update_{goal['id']}"):
+                client.update_progress(goal["id"], new_prog)
+                st.rerun()
+
+        # Add goal (anyone can)
+        st.markdown("---")
+        new_goal_client = st.text_input("Add shared goal", placeholder="e.g. Read 1 chapter daily", key="sq_client_goal")
+        if st.button("Add Goal", key="sq_client_add"):
+            if new_goal_client:
+                client.create_goal(new_goal_client)
+                st.rerun()
+
+        # Leaderboard
+        rankings = leaderboard_data.get("rankings", [])
+        if rankings:
+            st.markdown("---")
+            st.markdown('<p style="color:#888;font-size:0.7rem;text-transform:uppercase;letter-spacing:0.1em;">Leaderboard</p>', unsafe_allow_html=True)
+            for i, rank in enumerate(rankings):
+                st.markdown(f"""
+                <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #111;">
+                    <p style="color:#fff;font-size:0.9rem;margin:0;">{'#1' if i == 0 else ''} {rank['name']}</p>
+                    <p style="color:#888;font-size:0.9rem;margin:0;">{rank['avg_progress']}% avg</p>
+                </div>
+                """, unsafe_allow_html=True)
+
+        if st.button("Refresh", key="sq_refresh"):
+            st.rerun()

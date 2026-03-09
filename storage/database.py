@@ -112,6 +112,44 @@ class Database:
                     intensity REAL DEFAULT 0.5,
                     created_at TEXT DEFAULT (datetime('now'))
                 );
+
+                CREATE TABLE IF NOT EXISTS squads (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    invite_code TEXT NOT NULL UNIQUE,
+                    created_by TEXT DEFAULT '',
+                    created_at TEXT DEFAULT (datetime('now'))
+                );
+
+                CREATE TABLE IF NOT EXISTS squad_members (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    squad_id INTEGER NOT NULL,
+                    member_name TEXT NOT NULL,
+                    is_self INTEGER DEFAULT 0,
+                    joined_at TEXT DEFAULT (datetime('now')),
+                    FOREIGN KEY (squad_id) REFERENCES squads(id)
+                );
+
+                CREATE TABLE IF NOT EXISTS squad_goals (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    squad_id INTEGER NOT NULL,
+                    title TEXT NOT NULL,
+                    category TEXT DEFAULT 'general',
+                    status TEXT DEFAULT 'active',
+                    created_at TEXT DEFAULT (datetime('now')),
+                    FOREIGN KEY (squad_id) REFERENCES squads(id)
+                );
+
+                CREATE TABLE IF NOT EXISTS squad_goal_progress (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    squad_goal_id INTEGER NOT NULL,
+                    member_id INTEGER NOT NULL,
+                    progress INTEGER DEFAULT 0,
+                    last_updated TEXT DEFAULT (datetime('now')),
+                    UNIQUE(squad_goal_id, member_id),
+                    FOREIGN KEY (squad_goal_id) REFERENCES squad_goals(id),
+                    FOREIGN KEY (member_id) REFERENCES squad_members(id)
+                );
             """)
             conn.commit()
         finally:
@@ -492,5 +530,173 @@ class Database:
                 "SELECT * FROM emotion_cache WHERE message_hash = ?", (message_hash,)
             ).fetchone()
             return dict(row) if row else None
+        finally:
+            conn.close()
+
+    # ── Squad ─────────────────────────────────────
+
+    def create_squad(self, name: str, invite_code: str, created_by: str) -> int:
+        conn = self._get_conn()
+        try:
+            cursor = conn.execute("""
+                INSERT INTO squads (name, invite_code, created_by)
+                VALUES (?, ?, ?)
+            """, (name, invite_code, created_by))
+            conn.commit()
+            return cursor.lastrowid
+        finally:
+            conn.close()
+
+    def get_squad(self, squad_id: int = None, invite_code: str = None) -> dict:
+        conn = self._get_conn()
+        try:
+            if squad_id:
+                row = conn.execute("SELECT * FROM squads WHERE id = ?", (squad_id,)).fetchone()
+            elif invite_code:
+                row = conn.execute("SELECT * FROM squads WHERE invite_code = ?", (invite_code,)).fetchone()
+            else:
+                row = conn.execute("SELECT * FROM squads ORDER BY id DESC LIMIT 1").fetchone()
+            return dict(row) if row else None
+        finally:
+            conn.close()
+
+    def get_all_squads(self) -> list:
+        conn = self._get_conn()
+        try:
+            rows = conn.execute("SELECT * FROM squads ORDER BY created_at DESC").fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def add_squad_member(self, squad_id: int, member_name: str, is_self: bool = False) -> int:
+        conn = self._get_conn()
+        try:
+            existing = conn.execute(
+                "SELECT * FROM squad_members WHERE squad_id = ? AND LOWER(member_name) = LOWER(?)",
+                (squad_id, member_name)
+            ).fetchone()
+            if existing:
+                return existing["id"]
+            cursor = conn.execute("""
+                INSERT INTO squad_members (squad_id, member_name, is_self)
+                VALUES (?, ?, ?)
+            """, (squad_id, member_name, 1 if is_self else 0))
+            conn.commit()
+            return cursor.lastrowid
+        finally:
+            conn.close()
+
+    def get_squad_members(self, squad_id: int) -> list:
+        conn = self._get_conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM squad_members WHERE squad_id = ? ORDER BY joined_at", (squad_id,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def add_squad_goal(self, squad_id: int, title: str, category: str = "general") -> int:
+        conn = self._get_conn()
+        try:
+            cursor = conn.execute("""
+                INSERT INTO squad_goals (squad_id, title, category)
+                VALUES (?, ?, ?)
+            """, (squad_id, title, category))
+            goal_id = cursor.lastrowid
+
+            # Create progress entries for all members
+            members = conn.execute(
+                "SELECT id FROM squad_members WHERE squad_id = ?", (squad_id,)
+            ).fetchall()
+            for m in members:
+                conn.execute("""
+                    INSERT OR IGNORE INTO squad_goal_progress (squad_goal_id, member_id, progress)
+                    VALUES (?, ?, 0)
+                """, (goal_id, m["id"]))
+
+            conn.commit()
+            return goal_id
+        finally:
+            conn.close()
+
+    def get_squad_goals(self, squad_id: int) -> list:
+        conn = self._get_conn()
+        try:
+            rows = conn.execute(
+                "SELECT * FROM squad_goals WHERE squad_id = ? AND status = 'active' ORDER BY created_at DESC",
+                (squad_id,)
+            ).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def update_squad_goal_progress(self, squad_goal_id: int, member_id: int, progress: int):
+        conn = self._get_conn()
+        try:
+            conn.execute("""
+                INSERT INTO squad_goal_progress (squad_goal_id, member_id, progress)
+                VALUES (?, ?, ?)
+                ON CONFLICT(squad_goal_id, member_id)
+                DO UPDATE SET progress = ?, last_updated = datetime('now')
+            """, (squad_goal_id, member_id, progress, progress))
+            conn.commit()
+        finally:
+            conn.close()
+
+    def get_squad_leaderboard(self, squad_id: int) -> list:
+        """Get all members' progress on all squad goals."""
+        conn = self._get_conn()
+        try:
+            rows = conn.execute("""
+                SELECT
+                    sm.member_name,
+                    sm.id as member_id,
+                    sg.title as goal_title,
+                    sg.id as goal_id,
+                    COALESCE(sgp.progress, 0) as progress,
+                    sgp.last_updated
+                FROM squad_members sm
+                JOIN squad_goals sg ON sg.squad_id = sm.squad_id AND sg.status = 'active'
+                LEFT JOIN squad_goal_progress sgp ON sgp.member_id = sm.id AND sgp.squad_goal_id = sg.id
+                WHERE sm.squad_id = ?
+                ORDER BY sm.member_name, sg.title
+            """, (squad_id,)).fetchall()
+            return [dict(r) for r in rows]
+        finally:
+            conn.close()
+
+    def get_squad_summary(self, squad_id: int) -> dict:
+        """Get squad summary with per-member average progress."""
+        conn = self._get_conn()
+        try:
+            members = self.get_squad_members(squad_id)
+            goals = self.get_squad_goals(squad_id)
+            leaderboard = self.get_squad_leaderboard(squad_id)
+
+            member_scores = {}
+            for entry in leaderboard:
+                name = entry["member_name"]
+                if name not in member_scores:
+                    member_scores[name] = {"total": 0, "count": 0, "member_id": entry["member_id"]}
+                member_scores[name]["total"] += entry["progress"]
+                member_scores[name]["count"] += 1
+
+            rankings = []
+            for name, data in member_scores.items():
+                avg = data["total"] / data["count"] if data["count"] > 0 else 0
+                rankings.append({
+                    "name": name,
+                    "member_id": data["member_id"],
+                    "avg_progress": round(avg, 1),
+                })
+            rankings.sort(key=lambda x: x["avg_progress"], reverse=True)
+
+            return {
+                "member_count": len(members),
+                "goal_count": len(goals),
+                "rankings": rankings,
+                "leaderboard": leaderboard,
+            }
         finally:
             conn.close()

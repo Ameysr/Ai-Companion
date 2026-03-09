@@ -10,3 +10,6 @@ openai
 python-dotenv
 textblob
 plyer
+fastapi
+uvicorn
+httpx
