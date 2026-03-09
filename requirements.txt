@@ -4,3 +4,8 @@ scikit-learn
 numpy
 pandas
 plotly
+chromadb
+google-generativeai
+openai
+python-dotenv
+textblob
